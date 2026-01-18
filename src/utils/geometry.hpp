@@ -1,0 +1,113 @@
+#pragma once
+
+#include "events.hpp"
+
+namespace hic {
+
+struct Position {
+  float x = 0.0f;
+  float y = 0.0f;
+
+  Position() = default;
+  Position(float x, float y) : x(x), y(y) {}
+
+  Position operator+(const Position& other) const {
+    return {x + other.x, y + other.y};
+  }
+};
+
+struct Size {
+  float w = 0.0f;
+  float h = 0.0f;
+
+  Size() = default;
+  Size(const float w, const float h) : w(w), h(h) {}
+
+  [[nodiscard]] float area() const { return w * h; }
+};
+
+class Rectangle {
+public:
+  Event<void, const char*, float, float> change;
+
+  Rectangle() = default;
+  Rectangle(const float x, const float y, const float w, const float h)
+    : pos_(x, y), size_(w, h) {}
+
+  [[nodiscard]] float x() const { return pos_.x; }
+  [[nodiscard]] float y() const { return pos_.y; }
+
+  Rectangle& setX(float x) {
+    if (x != pos_.x) {
+      pos_.x = x;
+      change("x", pos_.x, x);
+    }
+    return *this;
+  }
+
+  Rectangle& setY(float y) {
+    if (y != pos_.y) {
+      pos_.y = y;
+      change("y", pos_.y, y);
+    }
+    return *this;
+  }
+
+  Rectangle& setPos(const Position& pos) {
+    return setX(pos.x).setY(pos.y);
+  }
+
+  [[nodiscard]] float w() const { return size_.w; }
+  [[nodiscard]] float h() const { return size_.h; }
+
+  Rectangle& setW(float w) {
+    if (w != size_.w) {
+      size_.w = w;
+      change("w", size_.w, w);
+    }
+    return *this;
+  }
+
+  Rectangle& setH(float h) {
+    if (h != size_.h) {
+      size_.h = h;
+      change("h", size_.h, h);
+    }
+    return *this;
+  }
+
+  Rectangle& setSize(const Size& size) {
+    return setW(size.w).setH(size.h);
+  }
+
+  Rectangle& setBounds(float x, float y, float w, float h) {
+    return setX(x).setY(y).setW(w).setH(h);
+  }
+
+  [[nodiscard]] const Position& pos() const { return pos_; }
+  [[nodiscard]] const Size& size() const { return size_; }
+
+  [[nodiscard]] bool contains(float px, float py) const {
+    return px >= pos_.x && px < pos_.x + size_.w &&
+           py >= pos_.y && py < pos_.y + size_.h;
+  }
+
+  [[nodiscard]] bool overlaps(const Rectangle& other) const {
+    return !(pos_.x + size_.w <= other.pos_.x ||
+             other.pos_.x + other.size_.w <= pos_.x ||
+             pos_.y + size_.h <= other.pos_.y ||
+             other.pos_.y + other.size_.h <= pos_.y);
+  }
+
+  [[nodiscard]] Position center() const {
+    return {pos_.x + size_.w / 2.0f, pos_.y + size_.h / 2.0f};
+  }
+
+  [[nodiscard]] float area() const { return size_.area(); }
+
+private:
+  Position pos_;
+  Size size_;
+};
+
+} // namespace hic

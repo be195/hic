@@ -1,0 +1,118 @@
+#include "basecomponent.hpp"
+#include "container.hpp"
+#include <SDL3/SDL.h>
+
+#include <utility>
+
+namespace hic {
+
+Container::Container(SDL_Window* window, SDL_Renderer* renderer) : window(window), renderer(renderer) {
+  SDL_GetWindowSize(window, &width, &height);
+}
+
+Container::~Container() {
+  if (root)
+    root->iDestroy();
+}
+
+void Container::setRoot(std::shared_ptr<BaseComponent> newRoot) {
+  if (root)
+    root->iDestroy();
+
+  root = std::move(newRoot);
+  if (root)
+    root->iMount(this);
+}
+
+void Container::update(const float deltaTime, const float time) const {
+  if (root)
+    root->iUpdate(deltaTime, time);
+}
+
+void Container::render(const float time) const {
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  SDL_RenderClear(renderer);
+
+  if (root)
+    root->iRender(renderer, time);
+
+  SDL_RenderPresent(renderer);
+}
+
+void Container::handleEvent(const SDL_Event& e) {
+  if (!root) return;
+
+  switch (e.type) {
+    case SDL_EVENT_MOUSE_MOTION:
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+    case SDL_EVENT_MOUSE_WHEEL: {
+      const float x = e.motion.x;
+      const float y = e.motion.y;
+      Cursor cursor = root->iHandleMouseEvent(e, x, y);
+      if (cursor == Cursor::INHERIT)
+        cursor = Cursor::DEFAULT;
+      updateCursor(cursor);
+    } break;
+
+    case SDL_EVENT_KEY_DOWN:
+    case SDL_EVENT_KEY_UP:
+      root->iHandleKeyboardEvent(e);
+      break;
+
+    case SDL_EVENT_QUIT:
+      haltLoop();
+      break;
+
+    default: break;
+  }
+}
+
+void Container::startLoop() {
+  if (is_in_loop) return;
+
+  is_in_loop = true;
+  while (is_in_loop) {
+    SDL_Event e;
+    while (SDL_PollEvent(&e))
+      handleEvent(e);
+
+    const auto nowCounter = SDL_GetPerformanceCounter();
+    const double deltaTime = (nowCounter - lastCounterTime) * 1000 / static_cast<float>(SDL_GetPerformanceFrequency());
+    const auto time = SDL_GetTicks();
+
+    update(deltaTime, time);
+    render(time);
+
+    lastCounterTime = nowCounter;
+  }
+}
+
+void Container::haltLoop() {
+  is_in_loop = false;
+}
+
+void Container::updateCursor(const Cursor cursor) {
+  if (cursor == currentCursor || cursor == Cursor::INHERIT) return;
+
+  currentCursor = cursor;
+
+  SDL_SystemCursor sdlCursor;
+  switch (cursor) {
+    case Cursor::POINTER:
+      sdlCursor = SDL_SYSTEM_CURSOR_POINTER; break;
+    case Cursor::TEXT:
+      sdlCursor = SDL_SYSTEM_CURSOR_TEXT; break;
+    case Cursor::CROSSHAIR:
+      sdlCursor = SDL_SYSTEM_CURSOR_CROSSHAIR; break;
+    case Cursor::WAIT:
+      sdlCursor = SDL_SYSTEM_CURSOR_WAIT; break;
+    default:
+      sdlCursor = SDL_SYSTEM_CURSOR_DEFAULT; break;
+  }
+
+  SDL_Cursor* c = SDL_CreateSystemCursor(sdlCursor);
+  SDL_SetCursor(c);
+}
+
+}
