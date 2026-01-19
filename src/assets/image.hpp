@@ -14,7 +14,9 @@ public:
   ~Image() override;
 
   void use(SDL_Renderer* renderer) override;
-  void draw(SDL_Renderer* renderer, float x, float y, float w = -1, float h = -1) const;
+  void draw(SDL_Renderer* renderer, float x, float y, float gw = -1, float gh = -1) const;
+
+  std::string getCacheKey() const override { return fileName; }
 private:
   SDL_Texture* texture = nullptr;
 };

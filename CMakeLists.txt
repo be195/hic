@@ -13,7 +13,6 @@ CPMAddPackage(
 )
 
 find_package(SDL3 REQUIRED)
-find_package(OpenGL REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -37,8 +36,10 @@ set(HIC_HEADERS
     utils/geometry.hpp
     utils/easing.hpp
     utils/animation.hpp
+    utils/util.hpp
     basecomponent.hpp
     container.hpp
+    watchdog.hpp
 )
 
 foreach(header ${HIC_HEADERS})
@@ -59,8 +60,10 @@ install(FILES "${CMAKE_BINARY_DIR}/include/hic.hpp"
     DESTINATION include)
 
 add_library(hic STATIC
+    src/utils/util.hpp
     src/basecomponent.cpp
     src/container.cpp
+    src/watchdog.cpp
 )
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/hic.hpp DESTINATION include)
@@ -77,7 +80,6 @@ target_include_directories(hic PRIVATE
 
 target_link_libraries(hic PUBLIC
     SDL3::SDL3
-    OpenGL::GL
 )
 
 set_target_properties(hic PROPERTIES
@@ -86,11 +88,10 @@ set_target_properties(hic PROPERTIES
     PUBLIC_HEADER "include/hic.hpp"
 )
 
-add_executable(hicex example/main.cpp)
+add_executable(hicex WIN32 example/main.cpp)
 
 target_link_libraries(hicex PUBLIC
     SDL3::SDL3
-    OpenGL::GL
     hic
 )
 

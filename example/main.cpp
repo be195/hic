@@ -1,5 +1,6 @@
 #include <hic.hpp>
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 #include <iostream>
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -50,7 +51,10 @@ class TestComponent : public hic::BaseComponent {
     };
 };
 
-int main(int argc, char* argv[]) {
+int main(const int argc, char* argv[]) {
+  if (hic::watchdog(argc, argv))
+    return 0;
+
   if (!SDL_Init(SDL_INIT_VIDEO)) {
     std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
     return 1;

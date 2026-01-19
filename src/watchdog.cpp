@@ -5,13 +5,16 @@
 #include <vector>
 
 #include "utils/util.hpp"
+
 #ifdef _WIN32
-    #include <windows.h>
-    #include <process.h>
+#include <windows.h>
+#include <process.h>
+
 #else
-    #include <unistd.h>
-    #include <sys/types.h>
-    #include <sys/wait.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
 #endif
 
 int spawnProcess(const char* exe, const std::vector<std::string>& args) {
@@ -92,6 +95,7 @@ bool watchdog(const int argc, char **argv) {
   for (int i = 1; i < argc; i++)
     if (strcmp(argv[i], CHILD_ARG) != 0)
       args.push_back(argv[i]);
+  args.push_back(CHILD_ARG);
 
   if (const int exitCode = spawnProcess(argv[0], args); exitCode != 0)
     panic("child process most likely crashed");
