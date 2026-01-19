@@ -221,24 +221,24 @@ bool BaseComponent::collidingWith(const BaseComponent& other, const bool absolut
     throw std::runtime_error("components must be on the same plane for relative collision check");
 
   const Rectangle r1 = absolute ?
-    Rectangle(const_cast<BaseComponent*>(this)->getAbsolutePosition().x,
-      const_cast<BaseComponent*>(this)->getAbsolutePosition().y,
+    Rectangle(this->getAbsolutePosition().x,
+      this->getAbsolutePosition().y,
       boundingRect.w(), boundingRect.h()) : boundingRect;
 
   const Rectangle r2 = absolute ?
-    Rectangle(const_cast<BaseComponent*>(&other)->getAbsolutePosition().x,
-      const_cast<BaseComponent*>(&other)->getAbsolutePosition().y,
+    Rectangle(other.getAbsolutePosition().x,
+      other.getAbsolutePosition().y,
       other.boundingRect.w(), other.boundingRect.h()) : other.boundingRect;
 
   return r1.overlaps(r2);
 }
 
-Position BaseComponent::getAbsolutePosition() {
+Position BaseComponent::getAbsolutePosition() const {
   if (absolutePosDirty) {
     float absX = boundingRect.x();
     float absY = boundingRect.y();
 
-    BaseComponent* p = parent;
+    const BaseComponent* p = parent;
     while (p) {
       absX += p->boundingRect.x();
       absY += p->boundingRect.y();

@@ -54,7 +54,7 @@ public:
 
   [[nodiscard]] bool collidingWith(const BaseComponent& other, bool absolute = false) const;
 
-  Position getAbsolutePosition();
+  Position getAbsolutePosition() const;
   [[nodiscard]] Position getCenter() const { return boundingRect.center(); }
 
   bool active = true;
@@ -75,8 +75,8 @@ protected:
 
   float accumulatedTime = 0.0f;
 
-  Position cachedAbsolutePos;
-  bool absolutePosDirty = true;
+  mutable Position cachedAbsolutePos;
+  mutable bool absolutePosDirty = true;
 
   bool isLastMousePosInvalid() const;
   Position lastMousePos;
