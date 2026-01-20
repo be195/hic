@@ -3,108 +3,112 @@ project(hic VERSION 1.0.0)
 
 include(cmake/CPM.cmake)
 
+option(HIC_BUILD_SHARED "Build hic as a shared library" OFF)
+set(HIC_LIB_TYPE STATIC)
+if(HIC_BUILD_SHARED)
+    set(HIC_LIB_TYPE SHARED)
+    set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+endif()
+
 CPMAddPackage(
-    NAME SDL3
-    GITHUB_REPOSITORY libsdl-org/SDL
-    GIT_TAG release-3.4.0
-    OPTIONS
-        "SDL_SHARED ON"
-        "SDL_STATIC OFF"
+        NAME SDL3
+        GITHUB_REPOSITORY libsdl-org/SDL
+        GIT_TAG release-3.4.0
+        OPTIONS "SDL_SHARED ON" "SDL_STATIC OFF"
 )
 
-find_package(SDL3 REQUIRED)
-
-set(CMAKE_CXX_STANDARD 20)
-
-function(read_file_content filepath output_var)
-    file(READ ${filepath} content)
-    set(${output_var} "${content}" PARENT_SCOPE)
-endfunction()
-
-function(remove_includes content output_var)
-    string(REGEX REPLACE "#include[ \t]*[\"].+[\"][ \t]*\n" "" result "${content}")
-    string(REGEX REPLACE "#pragma[ \t]+once[ \t]*\n" "" result "${result}")
-    set(${output_var} "${result}" PARENT_SCOPE)
-endfunction()
-
-set(SINGLE_HEADER "// hic\n")
-string(APPEND SINGLE_HEADER "#pragma once\n\n")
-
-set(HIC_HEADERS
-    utils/logging.hpp
-    utils/events.hpp
-    utils/geometry.hpp
-    utils/easing.hpp
-    utils/animation.hpp
-    utils/util.hpp
-    basecomponent.hpp
-    container.hpp
-    watchdog.hpp
+CPMAddPackage(
+        NAME ogg
+        GITHUB_REPOSITORY xiph/ogg
+        GIT_TAG v1.3.6
+        OPTIONS "BUILD_TESTING OFF" "INSTALL_DOCS OFF"
 )
 
-foreach(header ${HIC_HEADERS})
+CPMAddPackage(
+        NAME opus
+        GITHUB_REPOSITORY xiph/opus
+        GIT_TAG v1.5.2
+        OPTIONS "OPUS_BUILD_TESTING OFF" "OPUS_BUILD_PROGRAMS OFF"
+)
+
+CPMAddPackage(
+        NAME opusfile
+        GITHUB_REPOSITORY xiph/opusfile
+        GIT_TAG main
+        OPTIONS "OP_DISABLE_HTTP ON" "OP_DISABLE_EXAMPLES ON" "OP_DISABLE_DOCS ON"
+)
+
+set(SINGLE_HEADER "// hic version ${PROJECT_VERSION}\n#pragma once\n\n")
+
+if(NOT HIC_BUILD_SHARED)
+    string(APPEND SINGLE_HEADER "// static build\n#define HIC_API\n")
+endif()
+
+set(HIC_BASE_HEADERS
+        utils/hicapi.hpp
+        utils/logging.hpp
+        utils/events.hpp
+        utils/geometry.hpp
+        utils/easing.hpp
+        utils/animation.hpp
+        utils/util.hpp
+        basecomponent.hpp
+        container.hpp
+        watchdog.hpp
+)
+
+foreach(header ${HIC_BASE_HEADERS})
+    if(NOT HIC_BUILD_SHARED AND header STREQUAL "utils/hicapi.hpp")
+        continue()
+    endif()
+
     set(header_path "${CMAKE_CURRENT_SOURCE_DIR}/src/${header}")
-
     if(EXISTS ${header_path})
-        read_file_content(${header_path} header_content)
-        remove_includes("${header_content}" cleaned_content)
+        file(READ ${header_path} content)
+        string(REGEX REPLACE "#pragma[ \t]+once[ \t]*\n" "" content "${content}")
+        string(REGEX REPLACE "#include[ \t]*\"[^\"]+\"[ \t]*\n" "" content "${content}")
 
-        string(APPEND SINGLE_HEADER "\n// ${header}\n")
-        string(APPEND SINGLE_HEADER "${cleaned_content}\n")
+        string(APPEND SINGLE_HEADER "\n// --- ${header} ---\n${content}\n")
     endif()
 endforeach()
 
-file(WRITE "${CMAKE_BINARY_DIR}/include/hic.hpp" "${SINGLE_HEADER}")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/include/hic.hpp" "${SINGLE_HEADER}")
 
-install(FILES "${CMAKE_BINARY_DIR}/include/hic.hpp"
-    DESTINATION include)
-
-add_library(hic STATIC
-    src/utils/util.hpp
-    src/basecomponent.cpp
-    src/container.cpp
-    src/watchdog.cpp
+add_library(hic ${HIC_LIB_TYPE}
+        src/basecomponent.cpp
+        src/container.cpp
+        src/watchdog.cpp
 )
 
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/hic.hpp DESTINATION include)
+target_compile_features(hic PUBLIC cxx_std_20)
 
-target_include_directories(hic PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
+if(HIC_BUILD_SHARED)
+    target_compile_definitions(hic PRIVATE HIC_EXPORTS)
+    target_compile_definitions(hic PUBLIC HIC_BUILD_SHARED)
+endif()
 
-target_include_directories(hic PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+target_include_directories(hic
+        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 target_link_libraries(hic PUBLIC
-    SDL3::SDL3
+        SDL3::SDL3
+        opusfile
+        opus
+        ogg
 )
 
-set_target_properties(hic PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    SOVERSION 1
-    PUBLIC_HEADER "include/hic.hpp"
-)
-
+# example build
 add_executable(hicex WIN32 example/main.cpp)
-
-target_link_libraries(hicex PUBLIC
-    SDL3::SDL3
-    hic
-)
-
-target_include_directories(hicex PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/example
-)
+target_link_libraries(hicex PRIVATE hic)
 
 if(WIN32)
-    add_custom_command(TARGET hicex
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_RUNTIME_DLLS:hicex>
-        $<TARGET_FILE_DIR:hicex>
-        COMMAND_EXPAND_LISTS
+    add_custom_command(TARGET hicex POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:hicex>
+            $<TARGET_FILE_DIR:hicex>
+            COMMAND_EXPAND_LISTS
     )
 endif()

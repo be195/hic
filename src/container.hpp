@@ -3,10 +3,11 @@
 #include "basecomponent.hpp"
 #include <SDL3/SDL.h>
 #include <memory>
+#include "utils/hicapi.hpp"
 
 namespace hic {
 
-class Container {
+class HIC_API Container {
 public:
   Container(SDL_Window* window, SDL_Renderer* renderer);
   ~Container();

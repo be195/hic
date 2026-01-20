@@ -4,11 +4,12 @@
 #include <vector>
 #include <optional>
 #include <algorithm>
+#include "hicapi.hpp"
 
 namespace hic {
 
 template<typename ReturnType, typename... Args>
-class Event {
+class HIC_API Event {
 public:
   using Callback = std::function<ReturnType(Args...)>;
   using ListenerHandle = size_t;

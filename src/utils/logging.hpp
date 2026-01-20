@@ -4,10 +4,11 @@
 #include <iostream>
 #include <sstream>
 #include <cstdint>
+#include "hicapi.hpp"
 
 namespace hic {
 
-class Logger {
+class HIC_API Logger {
 public:
   enum class Level {
     DEBUG,

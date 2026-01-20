@@ -1,10 +1,11 @@
 #pragma once
 
 #include "events.hpp"
+#include "hicapi.hpp"
 
 namespace hic {
 
-struct Position {
+struct HIC_API Position {
   float x = 0.0f;
   float y = 0.0f;
 
@@ -16,7 +17,7 @@ struct Position {
   }
 };
 
-struct Size {
+struct HIC_API Size {
   float w = 0.0f;
   float h = 0.0f;
 
@@ -26,7 +27,7 @@ struct Size {
   [[nodiscard]] float area() const { return w * h; }
 };
 
-class Rectangle {
+class HIC_API Rectangle {
 public:
   Event<void, const char*, float, float> change;
 

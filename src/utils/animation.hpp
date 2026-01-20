@@ -4,6 +4,7 @@
 #include "easing.hpp"
 #include <vector>
 #include <functional>
+#include "hicapi.hpp"
 
 namespace hic {
 
@@ -26,7 +27,7 @@ struct Waiter {
   std::function<void()> complete;
 };
 
-class AnimationMixin {
+class HIC_API AnimationMixin {
 public:
   void updateAnimations(const float deltaTime) {
     // prop tweens

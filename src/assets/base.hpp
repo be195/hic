@@ -2,10 +2,11 @@
 
 #include <string>
 #include <SDL3/SDL.h>
+#include "../utils/hicapi.hpp"
 
 namespace hic::Assets {
 
-struct Base {
+struct HIC_API Base {
 public:
   virtual ~Base() = default;
 

@@ -1,11 +1,12 @@
 #pragma once
 
 #include "base.hpp"
+#include "../utils/hicapi.hpp"
 #include <SDL3/SDL.h>
 
 namespace hic::Assets {
 
-class Image : public Base {
+class HIC_API Image : public Base {
 public:
   const char* fileName;
   int w, h;

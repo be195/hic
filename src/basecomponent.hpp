@@ -3,6 +3,7 @@
 #include "utils/animation.hpp"
 #include "utils/logging.hpp"
 #include "utils/geometry.hpp"
+#include "utils/hicapi.hpp"
 #include <memory>
 #include <SDL3/SDL.h>
 
@@ -17,9 +18,9 @@ enum class Cursor {
   INHERIT
 };
 
-class Container; // will be declared later
+class HIC_API Container; // will be declared later
 
-class BaseComponent : public AnimationMixin {
+class HIC_API BaseComponent : public AnimationMixin {
 public:
   BaseComponent();
   virtual ~BaseComponent();

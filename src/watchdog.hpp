@@ -1,7 +1,9 @@
 #pragma once
 
+#include "utils/hicapi.hpp"
+
 namespace hic {
 
-bool watchdog(const int argc, char** argv);
+bool HIC_API watchdog(const int argc, char** argv);
 
 }
