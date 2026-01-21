@@ -1,7 +1,4 @@
 #include "manager.hpp"
-
-
-
 #include "base.hpp"
 #include "../utils/util.hpp"
 
@@ -76,7 +73,6 @@ Manager::Manager() {
   cacheMutex = SDL_CreateMutex();
   readyMutex = SDL_CreateMutex();
   cv = SDL_CreateCondition();
-
 
   const auto props = SDL_CreateProperties();
   SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER, (void*)workerThreadFunc);

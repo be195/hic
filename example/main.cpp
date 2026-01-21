@@ -61,15 +61,21 @@ int main(const int argc, char* argv[]) {
   }
 
   SDL_Window* window = SDL_CreateWindow(
-      "HIC Test", 800, 600, 0
+    "HIC Test", 1280, 720, 0
   );
 
   SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
+  if (!renderer) {
+    std::cerr << "SDL_CreateRenderer failed: " << SDL_GetError() << "\n";
+    return 1;
+  }
 
   const std::shared_ptr<hic::BaseComponent> test = std::make_shared<TestComponent>();
   test.get()->clip = false;
 
   auto container = hic::Container(window, renderer);
+  container.setLogicalWidth(320);
+  container.setLogicalHeight(180);
   container.setRoot(test);
   container.startLoop();
 

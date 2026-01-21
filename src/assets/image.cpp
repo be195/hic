@@ -12,17 +12,21 @@ Image::~Image() {
   }
 }
 
-void Image::use(SDL_Renderer* renderer) {
+void Image::preload() {
   if (texture)
     SDL_DestroyTexture(texture);
 
-  const auto surface = loadSurfaceFromFile(fileName);
-  assertNotNull(surface);
+  surface = loadSurfaceFromFile(fileName.c_str());
+}
+
+void Image::use(SDL_Renderer* renderer) {
+  assertNotNull(surface, "surface loading failed in a background thread");
 
   texture = SDL_CreateTextureFromSurface(renderer, surface);
   assertNotNull(texture, SDL_GetError());
 
   SDL_DestroySurface(surface);
+  surface = nullptr;
 }
 
 void Image::draw(SDL_Renderer* renderer, const float x, const float y, const float gw, const float gh) const {

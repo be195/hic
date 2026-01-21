@@ -5,6 +5,7 @@
 #include <memory>
 #include "utils/hicapi.hpp"
 
+//
 namespace hic {
 
 class HIC_API Container {
@@ -25,16 +26,21 @@ public:
 
   int getWidth() const { return width; }
   int getHeight() const { return height; }
+  int getLogicalWidth() const { return lWidth; }
+  int getLogicalHeight() const { return lHeight; }
+  int setLogicalWidth(int newWidth);
+  int setLogicalHeight(int newHeight);
 
 private:
   SDL_Window* window;
   SDL_Renderer* renderer;
   std::shared_ptr<BaseComponent> root;
 
-  int width{}, height{};
+  int width{}, height{}, lWidth{}, lHeight{};
   Uint8 lastCounterTime = 0;
 
   bool is_in_loop = false;
+  bool logical_res_dirty = false;
 
   Cursor currentCursor = Cursor::DEFAULT;
   void updateCursor(Cursor cursor);
