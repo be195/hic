@@ -15,12 +15,13 @@ public:
     const unsigned char* data;
     size_t size;
     size_t pos;
+    std::atomic<int> *instanceCount;
   };
 
   static constexpr int OPUS_SAMPLE_RATE = 48000;
   const char* fileName;
 
-  double getDuration();
+  int getInstanceCount() const;
 
   OggOpusFile* createHandle();
   void freeHandle(OggOpusFile* handle);
@@ -32,10 +33,10 @@ private:
   std::vector<unsigned char> buffer;
   std::atomic<int> instanceCount;
 
-  static void _closeCallback(void* stream);
-  static void _readCallback(void* stream, unsigned char* ptr, int n);
-  static void _seekCallback(void* stream, opus_int64 offset, int whence);
-  static void _tellCallback(void* stream);
+  static int _closeCallback(void* stream);
+  static int _readCallback(void* stream, unsigned char* ptr, int n);
+  static int _seekCallback(void* stream, opus_int64 offset, int whence);
+  static opus_int64 _tellCallback(void* stream);
 };
 
 }
