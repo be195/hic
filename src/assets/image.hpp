@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-
 #include "base.hpp"
 #include "../utils/hicapi.hpp"
 #include <SDL3/SDL.h>

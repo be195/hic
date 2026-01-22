@@ -21,7 +21,7 @@ public:
   };
 
   void update(float deltaTime, float time) override {
-    this->boundingRect.setX(100 + sin(time / 1000 * M_PI * 2) * 20);
+    this->boundingRect.setX(100 + sin(time / 2000 * M_PI) * 20);
   };
 
   hic::Cursor handleMouseEvent(const SDL_Event &e, float x, float y) override {
@@ -52,10 +52,10 @@ class TestComponent : public hic::BaseComponent {
 };
 
 int main(const int argc, char* argv[]) {
-  if (hic::watchdog(argc, argv))
-    return 0;
+  // if (hic::watchdog(argc, argv))
+  //  return 0;
 
-  if (!SDL_Init(SDL_INIT_VIDEO)) {
+  if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
     std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
     return 1;
   }
@@ -77,6 +77,18 @@ int main(const int argc, char* argv[]) {
   container.setLogicalWidth(320);
   container.setLogicalHeight(180);
   container.setRoot(test);
+
+  const auto assM = container.getAssetManager();
+  const auto audM = container.getAudioManager();
+
+  std::shared_ptr<hic::Assets::Audio> file = nullptr;
+  file = assM->loadWithCallback<hic::Assets::Audio>([audM, &file] {
+    const auto master = audM->getMaster();
+    const auto audioBus = master->createAudioBus(file);
+  }, "test.ogg");
+
+  SDL_SetRenderVSync(renderer, 1);
+
   container.startLoop();
 
   SDL_DestroyRenderer(renderer);

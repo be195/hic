@@ -80,25 +80,21 @@ int OpusStream::decodeChunk() {
 }
 
 void OpusStream::getSamples(float* samples, const int frames) {
-  if (finished.load(std::memory_order_acquire)) {
-    std::fill_n(samples, frames * 2, 0.0);
-    return;
-  }
+  if (finished.load(std::memory_order_acquire)) return;
 
   const int samplesNeeded = frames * 2;
   int samplesWritten = 0;
 
   while (samplesWritten < samplesNeeded) {
     if (bufferReadPos >= bufferValidSamples) {
-      if (decodeChunk() <= 0) {
-        std::fill_n(samples + samplesWritten, samplesNeeded - samplesWritten, 0.0);
-        return;
-      }
+      if (decodeChunk() <= 0) return;
     }
 
-    const int samplesToCopy = std::min(samplesNeeded - samplesWritten, bufferValidSamples - bufferReadPos);
+    const int samplesAvailable = bufferValidSamples - bufferReadPos;
+    const int samplesToCopy = std::min(samplesNeeded - samplesWritten, samplesAvailable);
 
-    std::copy_n(decodeBuffer + bufferReadPos, samplesToCopy, samples + samplesWritten);
+    for (int i = 0; i < samplesToCopy; ++i)
+      samples[samplesWritten + i] += decodeBuffer[bufferReadPos + i];
 
     bufferReadPos += samplesToCopy;
     samplesWritten += samplesToCopy;

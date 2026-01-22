@@ -8,11 +8,15 @@ namespace hic {
 
 Container::Container(SDL_Window* window, SDL_Renderer* renderer) : window(window), renderer(renderer) {
   SDL_GetWindowSize(window, &width, &height);
+  assetManager = new Assets::Manager();
+  audioManager = new Audio::Manager();
 }
 
 Container::~Container() {
   if (root)
     root->iDestroy();
+  if (assetManager) delete assetManager;
+  if (audioManager) delete audioManager;
 }
 
 void Container::setRoot(std::shared_ptr<BaseComponent> newRoot) {
@@ -102,6 +106,8 @@ void Container::startLoop() {
       logical_res_dirty = false;
       SDL_SetRenderLogicalPresentation(renderer, lWidth, lHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
     }
+
+    assetManager->processReady(renderer);
 
     const auto nowCounter = SDL_GetPerformanceCounter();
     const double deltaTime = (nowCounter - lastCounterTime) * 1000 / static_cast<float>(SDL_GetPerformanceFrequency());

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <SDL3/SDL.h>
 #include <opusfile.h>
 #include <vector>
 #include "base.hpp"
@@ -17,6 +16,8 @@ public:
     size_t pos;
     std::atomic<int> *instanceCount;
   };
+
+  explicit Audio(const char* fileName): fileName(fileName) {}
 
   static constexpr int OPUS_SAMPLE_RATE = 48000;
   const char* fileName;

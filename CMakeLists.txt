@@ -43,7 +43,7 @@ set(SINGLE_HEADER "// hic version ${PROJECT_VERSION}\n#pragma once\n\n")
 if(NOT HIC_BUILD_SHARED)
     string(APPEND SINGLE_HEADER "// static build\n#define HIC_API\n")
 endif()
-
+#
 set(HIC_BASE_HEADERS
         utils/hicapi.hpp
         utils/logging.hpp
@@ -52,6 +52,15 @@ set(HIC_BASE_HEADERS
         utils/easing.hpp
         utils/animation.hpp
         utils/util.hpp
+        assets/base.hpp
+        assets/audio.hpp
+        assets/image.hpp
+        assets/manager.hpp
+        audio/const.hpp
+        audio/effect.hpp
+        audio/stream.hpp
+        audio/bus.hpp
+        audio/manager.hpp
         basecomponent.hpp
         container.hpp
         watchdog.hpp
@@ -76,6 +85,12 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/include/hic.hpp" "${SINGLE_HEADER}")
 
 add_library(hic ${HIC_LIB_TYPE}
+        src/assets/audio.cpp
+        src/assets/image.cpp
+        src/assets/manager.cpp
+        src/audio/stream.cpp
+        src/audio/bus.cpp
+        src/audio/manager.cpp
         src/basecomponent.cpp
         src/container.cpp
         src/watchdog.cpp
