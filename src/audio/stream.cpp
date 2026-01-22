@@ -12,12 +12,6 @@ OpusStream::~OpusStream() {
     audio->freeHandle(opusFile);
 }
 
-int OpusStream::getInstanceCount() const {
-  if (audio)
-    return audio->getInstanceCount();
-  return -1;
-}
-
 double OpusStream::getDuration() const {
   if (!opusFile) return 0.0;
   return op_pcm_total(opusFile, -1) / SAMPLE_RATE;

@@ -16,11 +16,7 @@ Manager::Manager() {
 }
 
 Manager::~Manager() {
-  if (stream) {
-    SDL_PauseAudioStreamDevice(stream);
-    SDL_UnbindAudioStream(stream);
-    SDL_DestroyAudioStream(stream);
-  }
+  scratchBuffer.clear();
 }
 
 std::shared_ptr<Bus> Manager::getMaster() const {

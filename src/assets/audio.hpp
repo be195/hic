@@ -1,7 +1,9 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <opusfile.h>
+#include <unordered_map>
 #include <vector>
 #include "base.hpp"
 #include "../utils/hicapi.hpp"
@@ -14,15 +16,14 @@ public:
     const unsigned char* data;
     size_t size;
     size_t pos;
-    std::atomic<int> *instanceCount;
+    const Audio* owner;
   };
 
-  explicit Audio(const char* fileName): fileName(fileName) {}
+  explicit Audio(const char* fileName);
+  ~Audio() override;
 
   static constexpr int OPUS_SAMPLE_RATE = 48000;
   const char* fileName;
-
-  int getInstanceCount() const;
 
   OggOpusFile* createHandle();
   void freeHandle(OggOpusFile* handle);
@@ -32,7 +33,10 @@ public:
   std::string getCacheKey() const override { return fileName; }
 private:
   std::vector<unsigned char> buffer;
-  std::atomic<int> instanceCount;
+
+  SDL_Mutex* bufferMutex;
+  SDL_Mutex* handlesMutex;
+  std::unordered_map<OggOpusFile*, OpusMemoryStream*> handles;
 
   static int _closeCallback(void* stream);
   static int _readCallback(void* stream, unsigned char* ptr, int n);

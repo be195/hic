@@ -38,6 +38,12 @@ CPMAddPackage(
         OPTIONS "OP_DISABLE_HTTP ON" "OP_DISABLE_EXAMPLES ON" "OP_DISABLE_DOCS ON"
 )
 
+CPMAddPackage(
+        NAME nlohmann_json
+        GITHUB_REPOSITORY nlohmann/json
+        GIT_TAG v3.12.0
+)
+
 set(SINGLE_HEADER "// hic version ${PROJECT_VERSION}\n#pragma once\n\n")
 
 if(NOT HIC_BUILD_SHARED)
@@ -113,6 +119,7 @@ target_link_libraries(hic PUBLIC
         opusfile
         opus
         ogg
+        nlohmann_json::nlohmann_json
 )
 
 # example build

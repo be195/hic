@@ -19,7 +19,6 @@ public:
   bool isFinished() const;
   double getPosition() const;
   double getDuration() const;
-  int getInstanceCount() const;
 
 private:
   OggOpusFile* opusFile;

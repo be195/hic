@@ -17,9 +17,9 @@ private:
 
   std::queue<LoadTask> loadTasks;
   std::queue<LoadTask> ready;
-  SDL_Mutex* loadMutex;
-  SDL_Mutex* cacheMutex;
-  SDL_Mutex* readyMutex;
+  mutable SDL_Mutex* loadMutex;
+  mutable SDL_Mutex* cacheMutex;
+  mutable SDL_Mutex* readyMutex;
   SDL_Condition* cv;
   std::atomic<bool> running{true};
   SDL_Thread* thread;
@@ -55,6 +55,7 @@ template<typename T, typename... Args>
 std::shared_ptr<T> Manager::load(Args&&... args) {
   static_assert(std::is_base_of_v<Base, T>, "T must inherit from Assets::Base");
 
+  // FIXME: redundant initialization here and funcs below
   const auto tempAsset = std::make_shared<T>(std::forward<Args>(args)...);
   std::string cacheKey = tempAsset->getCacheKey();
 
