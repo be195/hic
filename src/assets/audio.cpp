@@ -2,8 +2,8 @@
 #include "audio.hpp"
 #include <algorithm>
 #include <ranges>
-
 #include "../utils/util.hpp"
+#include "../utils/logging.hpp"
 
 namespace hic::Assets {
 
@@ -13,7 +13,7 @@ Audio::Audio(const char *fileName): fileName(fileName) {
 }
 
 Audio::~Audio() {
-  SDL_Log("audio destructor start, handles: %zu", handles.size());
+  HICL("Audio").debug("audio destructor start, handles:", handles.size());
 
   std::vector<OggOpusFile*> toClose;
 
@@ -21,7 +21,7 @@ Audio::~Audio() {
   toClose.reserve(handles.size());
 
   for (auto& [handle, stream] : handles) {
-    SDL_Log("orphaning stream %p for handle %p", stream, handle);
+    HICL("Audio").debug("orphaning stream", stream, "for handle", handle);
     stream->owner = nullptr;
     toClose.push_back(handle);
   }
@@ -29,13 +29,13 @@ Audio::~Audio() {
   handles.clear();
   SDL_UnlockMutex(handlesMutex);
 
-  SDL_Log("freeing %zu handles", toClose.size());
+  HICL("Audio").debug("freeing", toClose.size(), "handles");
   for (const auto &handle: toClose) {
     op_free(handle);
-    SDL_Log("freeing handle %p", handle);
+    HICL("Audio").debug("freeing handle", handle);
   }
 
-  SDL_Log("destroying mutex");
+  HICL("Audio").debug("destroying mutex");
 
   SDL_LockMutex(bufferMutex);
   buffer.clear();
@@ -43,7 +43,7 @@ Audio::~Audio() {
 
   SDL_DestroyMutex(bufferMutex);
   SDL_DestroyMutex(handlesMutex);
-  SDL_Log("ok");
+  HICL("Audio").debug("destroyed");
 }
 
 int Audio::_closeCallback(void *stream) {
@@ -65,7 +65,7 @@ int Audio::_readCallback(void *stream, unsigned char *ptr, const int n) {
   }
 
   const size_t available = cast->size - cast->pos;
-  const size_t toRead = min(static_cast<size_t>(n), available);
+  const size_t toRead = std::min(static_cast<size_t>(n), available);
 
   if (toRead > 0) {
     std::memcpy(ptr, cast->data + cast->pos, toRead);
@@ -124,13 +124,16 @@ opus_int64 Audio::_tellCallback(void *stream) {
 
 void Audio::preload() {
   SDL_IOStream* file = SDL_IOFromFile(fileName, "rb");
-  if (!file)
-    panic("could not open provided audio file");
+  if (!file) {
+    HICL("Audio").warn("could not open provided audio file");
+    return;
+  }
 
   const Sint64 fileSize = SDL_GetIOSize(file);
   if (fileSize <= 0) {
     SDL_CloseIO(file);
-    panic("could not determine audio file size");
+    HICL("Audio").warn("could not determine audio file size");
+    return;
   }
 
   buffer.resize(fileSize);

@@ -7,7 +7,6 @@
 namespace hic::Assets {
 
 struct HIC_API Base {
-public:
   virtual ~Base() = default;
 
   // called in a separate thread

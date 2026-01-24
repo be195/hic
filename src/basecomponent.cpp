@@ -6,9 +6,6 @@
 
 namespace hic {
 
-BaseComponent::BaseComponent() : logger(typeid(*this).name()) {}
-BaseComponent::~BaseComponent() = default;
-
 void BaseComponent::addChild(const std::shared_ptr<BaseComponent>& child) {
   child->parent = this;
   children.push_back(child);
@@ -19,8 +16,7 @@ void BaseComponent::addChild(const std::shared_ptr<BaseComponent>& child) {
 }
 
 void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
-  auto it = std::ranges::find(children, child);
-  if (it != children.end()) {
+  if (const auto it = std::ranges::find(children, child); it != children.end()) {
     (*it)->iDestroy();
     children.erase(it);
   }
@@ -84,6 +80,7 @@ void BaseComponent::checkMouse() {
     if (!boundingRect.contains(lastMousePos.x, lastMousePos.y))
       triggerMouseLeave();
   } else if (parent != nullptr) {
+    // ReSharper disable once CppTooWideScopeInitStatement
     const auto relativePos = parent->amIOverlappingWithMouse(this);
     if (relativePos != nullptr) {
       lastMousePos.x = relativePos->x;
@@ -99,6 +96,7 @@ bool BaseComponent::isLastMousePosInvalid() const {
 
 Position* BaseComponent::amIOverlappingWithMouse(const BaseComponent* component) {
   const float relX = lastMousePos.x - boundingRect.x();
+  // ReSharper disable once CppTooWideScopeInitStatement
   const float relY = lastMousePos.y - boundingRect.y();
 
   if (component->boundingRect.contains(relX, relY)) {
@@ -140,6 +138,7 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
 
     for (const auto& child : children) {
       try {
+        // ReSharper disable once CppTooWideScopeInitStatement
         Rectangle c = child->boundingRect;
         if (!clip ||
           (c.x() + c.w() >= 0 &&
@@ -181,16 +180,17 @@ Cursor BaseComponent::iHandleMouseEvent(const SDL_Event& e, float x, float y) {
 
   x -= boundingRect.x();
   y -= boundingRect.y();
+#ifdef HIC_DEBUG_MOUSE
   logger.debug("mouse move:", x, y);
+#endif
 
   triggerMouseEnter();
 
   auto setCursor = Cursor::INHERIT;
 
-  for (auto & child : std::ranges::reverse_view(children)) {
-    Rectangle& c = child->boundingRect;
-
-    if (c.contains(x, y)) {
+  for (const auto & child : std::ranges::reverse_view(children)) {
+    if (Rectangle& c = child->boundingRect; c.contains(x, y)) {
+      // ReSharper disable once CppTooWideScopeInitStatement
       const Cursor childCursor = child->iHandleMouseEvent(e, x, y);
       if (childCursor != Cursor::INHERIT && e.type != SDL_EVENT_MOUSE_WHEEL) {
         setCursor = childCursor;
@@ -254,7 +254,9 @@ Position BaseComponent::getAbsolutePosition() const {
 
 void BaseComponent::triggerMouseEnter() {
   if (!mouseInside) {
+#ifdef HIC_DEBUG_MOUSE
     logger.debug("triggerMouseEnter()");
+#endif
     mouseInside = true;
     mouseEnter();
   }
@@ -262,7 +264,9 @@ void BaseComponent::triggerMouseEnter() {
 
 void BaseComponent::triggerMouseLeave() {
   if (mouseInside) {
+#ifdef HIC_DEBUG_MOUSE
     logger.debug("triggerMouseLeave()");
+#endif
     mouseInside = false;
     mouseLeave();
 
@@ -271,7 +275,7 @@ void BaseComponent::triggerMouseLeave() {
   }
 }
 
-void BaseComponent::markAbsolutePosDirty() {
+void BaseComponent::markAbsolutePosDirty() const {
   absolutePosDirty = true;
   for (const auto& child : children)
     child->markAbsolutePosDirty();

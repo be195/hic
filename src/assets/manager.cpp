@@ -1,6 +1,7 @@
 #include "manager.hpp"
 #include "base.hpp"
 #include "../utils/util.hpp"
+#include "utils/logging.hpp"
 
 namespace hic::Assets {
 
@@ -32,6 +33,7 @@ void Manager::threadLoop() {
     SDL_UnlockMutex(loadMutex);
 
     if (task.asset) {
+      HICL("AssetManager").info("preloading", task.asset);
       task.asset->preload();
 
       SDL_LockMutex(readyMutex);
@@ -99,6 +101,7 @@ void Manager::processReady(SDL_Renderer* renderer) {
     const auto [asset, callback] = std::move(ready.front());
     ready.pop();
 
+    HICL("AssetManager").info("processing ready asset", asset);
     asset->use(renderer);
 
     if (callback)

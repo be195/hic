@@ -22,8 +22,9 @@ class HIC_API Container; // will be declared later
 
 class HIC_API BaseComponent : public AnimationMixin {
 public:
-  BaseComponent();
-  virtual ~BaseComponent();
+  // FIXME: not enough clarity! typeid(*this).name() hack just returns "class hic::BaseComponent"
+  BaseComponent() : logger(typeid(*this).name()) {};
+  virtual ~BaseComponent() = default;
 
   virtual void preload() {}
   virtual void mounted() {}
@@ -90,7 +91,7 @@ private:
 
   void triggerMouseEnter();
   void triggerMouseLeave();
-  void markAbsolutePosDirty();
+  void markAbsolutePosDirty() const;
 
   Position overlappingRes = {-1, -1};
 

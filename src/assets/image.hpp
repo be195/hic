@@ -10,6 +10,7 @@ namespace hic::Assets {
 class HIC_API Image : public Base {
 public:
   std::string fileName;
+  SDL_Texture* texture = nullptr;
   int w, h;
 
   explicit Image(std::string fileName) : fileName(std::move(fileName)), w(0), h(0) {}
@@ -17,11 +18,12 @@ public:
 
   void preload() override;
   void use(SDL_Renderer* renderer) override;
-  void draw(SDL_Renderer* renderer, float x, float y, float gw = -1, float gh = -1) const;
+  void render(SDL_Renderer* renderer, float x, float y, float gw = -1, float gh = -1) const;
+  void setScaleMode(SDL_ScaleMode scaleMode) const;
+  SDL_ScaleMode getScaleMode() const;
 
   std::string getCacheKey() const override { return fileName; }
 private:
-  SDL_Texture* texture = nullptr;
   SDL_Surface* surface = nullptr;
 };
 

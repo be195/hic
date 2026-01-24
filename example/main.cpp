@@ -31,6 +31,8 @@ public:
 
 class TestComponent : public hic::BaseComponent {
   public:
+    const hic::Assets::Image *file = nullptr;
+
     void mounted() override {
       this->boundingRect.setW(200);
       this->boundingRect.setH(200);
@@ -44,7 +46,13 @@ class TestComponent : public hic::BaseComponent {
 
       const SDL_FRect rect = { 0, 0, this->boundingRect.w(), this->boundingRect.h() };
       SDL_RenderFillRect(r, &rect);
+
+      if (file) file->render(r, 0, 0);
     };
+
+    void setFile(const hic::Assets::Image* nf) {
+      file = nf;
+    }
 
     hic::Cursor handleMouseEvent(const SDL_Event &e, float x, float y) override {
       return hic::Cursor::INHERIT;
@@ -70,26 +78,26 @@ int main(const int argc, char* argv[]) {
     return 1;
   }
 
-  const std::shared_ptr<hic::BaseComponent> test = std::make_shared<TestComponent>();
+  const auto test = std::make_shared<TestComponent>();
   test.get()->clip = false;
 
-  auto container = hic::Container(window, renderer);
-  container.setLogicalWidth(320);
-  container.setLogicalHeight(180);
-  container.setRoot(test);
+  const auto container = new hic::Container(window, renderer);
+  container->setLogicalWidth(320);
+  container->setLogicalHeight(180);
+  container->setRoot(test);
 
-  const auto assM = container.getAssetManager();
-  const auto audM = container.getAudioManager();
+  const auto assM = container->getAssetManager();
+  const auto audM = container->getAudioManager();
 
   std::shared_ptr<hic::Assets::Audio> file = nullptr;
   file = assM->loadWithCallback<hic::Assets::Audio>([audM, &file] {
     const auto master = audM->getMaster();
     const auto audioBus = master->createAudioBus(file);
-  }, "test.ogg");
+  }, "test2.ogg");
 
   SDL_SetRenderVSync(renderer, 1);
 
-  container.startLoop();
+  container->startLoop();
 
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);

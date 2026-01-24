@@ -61,6 +61,7 @@ set(HIC_BASE_HEADERS
         assets/base.hpp
         assets/audio.hpp
         assets/image.hpp
+        assets/spritesheet.hpp
         assets/manager.hpp
         audio/const.hpp
         audio/effect.hpp
@@ -93,6 +94,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/include/hic.hpp" "${SINGLE_HEADER}")
 add_library(hic ${HIC_LIB_TYPE}
         src/assets/audio.cpp
         src/assets/image.cpp
+        src/assets/spritesheet.cpp
         src/assets/manager.cpp
         src/audio/stream.cpp
         src/audio/bus.cpp

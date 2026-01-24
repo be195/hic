@@ -4,17 +4,19 @@
 #include <iostream>
 #include <sstream>
 #include <cstdint>
-#include "hicapi.hpp"
+#include <mutex>
+#include <memory>
+#include <unordered_map>
 
 namespace hic {
 
-class HIC_API Logger {
+class Logger {
 public:
-  enum class Level {
+  enum class LogLevel {
     DEBUG,
     INFO,
     WARN,
-    ERROR
+    ERR
   };
 
   explicit Logger(const std::string& name) : name(name) {
@@ -26,49 +28,93 @@ public:
 
   template<typename... Args>
   void debug(Args&&... args) {
-      log(Level::DEBUG, std::forward<Args>(args)...);
+    log(LogLevel::DEBUG, std::forward<Args>(args)...);
   }
 
   template<typename... Args>
   void info(Args&&... args) {
-      log(Level::INFO, std::forward<Args>(args)...);
+    log(LogLevel::INFO, std::forward<Args>(args)...);
   }
 
   template<typename... Args>
   void warn(Args&&... args) {
-      log(Level::WARN, std::forward<Args>(args)...);
+    log(LogLevel::WARN, std::forward<Args>(args)...);
   }
 
   template<typename... Args>
   void error(Args&&... args) {
-      log(Level::ERROR, std::forward<Args>(args)...);
+    log(LogLevel::ERR, std::forward<Args>(args)...);
   }
+
+  static Logger& get(const std::string& name) {
+    static std::mutex mutex;
+    static std::unordered_map<std::string, std::unique_ptr<Logger>> loggers;
+
+    std::lock_guard lock(mutex);
+    auto it = loggers.find(name);
+    if (it == loggers.end())
+      it = loggers.emplace(name, std::unique_ptr<Logger>(new Logger(name))).first;
+    return *it->second;
+  }
+
+  static void setMinLevel(const LogLevel level) {
+    minLevel = level;
+  }
+
+  static void setColored(const bool enable) {
+    colored = enable;
+  }
+
 private:
   std::string name;
   uint8_t r, g, b;
 
+  static inline auto minLevel = LogLevel::DEBUG;
+  static inline bool colored = true;
+  static inline std::mutex outputMutex;
+
   template<typename... Args>
-  void log(const Level level, Args&&... args) {
+  void log(const LogLevel level, Args&&... args) {
+    if (level < minLevel) return;
+
     std::ostringstream oss;
 
-    oss <<
-      "\033[38;2;" <<
-        static_cast<int>(r) << ";" <<
-        static_cast<int>(g) << ";" <<
-        static_cast<int>(b) << "m";
+    if (colored)
+      oss <<
+        "\033[38;2;" <<
+          static_cast<int>(r) << ";" <<
+          static_cast<int>(g) << ";" <<
+          static_cast<int>(b) << "m";
+
     oss << "[" << name << "]";
-    oss << "\033[0m ";
 
-    switch (level) {
-      case Level::DEBUG: oss << "\033[90m[DBG]\033[0m "; break;
-      case Level::INFO:  oss << "\033[34m[INF]\033[0m "; break;
-      case Level::WARN:  oss << "\033[33m[WRN]\033[0m "; break;
-      case Level::ERROR: oss << "\033[31m[ERR]\033[0m "; break;
-    }
+    if (colored) oss << "\033[0m";
+    oss << " ";
 
-    (oss << ... << args);
-    std::cout << oss.str() << std::endl;
+    if (colored)
+      switch (level) {
+        case LogLevel::DEBUG: oss << "\033[90m[DBG]\033[0m "; break;
+        case LogLevel::INFO:  oss << "\033[34m[INF]\033[0m "; break;
+        case LogLevel::WARN:  oss << "\033[33m[WRN]\033[0m "; break;
+        case LogLevel::ERR: oss << "\033[31m[ERR]\033[0m "; break;
+      }
+    else
+      switch (level) {
+        case LogLevel::DEBUG: oss << "[DBG] "; break;
+        case LogLevel::INFO:  oss << "[INF] "; break;
+        case LogLevel::WARN:  oss << "[WRN] "; break;
+        case LogLevel::ERR: oss << "[ERR] "; break;
+      }
+
+    bool first = true;
+    ((oss << (first ? "" : " ") << args, first = false), ...);
+
+    std::lock_guard lock(outputMutex);
+    std::cerr << oss.str() << std::endl;
+    std::cerr.flush();
   }
 };
 
 } // namespace hic
+
+#define HICL(name) hic::Logger::get(name)
