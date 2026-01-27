@@ -19,11 +19,11 @@ public:
     const Audio* owner;
   };
 
-  explicit Audio(const char* fileName);
+  explicit Audio(std::string fileName);
   ~Audio() override;
 
   static constexpr int OPUS_SAMPLE_RATE = 48000;
-  const char* fileName;
+  std::string fileName;
 
   OggOpusFile* createHandle();
   void freeHandle(OggOpusFile* handle);

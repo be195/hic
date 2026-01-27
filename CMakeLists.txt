@@ -58,10 +58,12 @@ set(HIC_BASE_HEADERS
         utils/easing.hpp
         utils/animation.hpp
         utils/util.hpp
+        utils/bmfont.hpp
         assets/base.hpp
         assets/audio.hpp
         assets/image.hpp
         assets/spritesheet.hpp
+        src/assets/bitmap.hpp
         assets/manager.hpp
         audio/const.hpp
         audio/effect.hpp
@@ -95,6 +97,7 @@ add_library(hic ${HIC_LIB_TYPE}
         src/assets/audio.cpp
         src/assets/image.cpp
         src/assets/spritesheet.cpp
+        src/assets/bitmap.cpp
         src/assets/manager.cpp
         src/audio/stream.cpp
         src/audio/bus.cpp

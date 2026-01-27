@@ -209,8 +209,9 @@ void AnimatedSpritesheetPart::update(const float deltaTime) {
   }
 }
 
-Spritesheet::Spritesheet(std::string folderName) : Image(folderName + "/image.png"), folderName(std::move(folderName)) {
+Spritesheet::Spritesheet(std::string folderName) : Image("spritesheets/" + folderName + "/image.png"), folderName(std::move(folderName)) {
   animationMutex = SDL_CreateMutex();
+  assertNotNull(animationMutex, "failed to create mutex");
 }
 
 Spritesheet::~Spritesheet() {
@@ -221,7 +222,7 @@ Spritesheet::~Spritesheet() {
 void Spritesheet::preload() {
   Image::preload();
 
-  std::ifstream f(folderName + "/data.json");
+  std::ifstream f("spritesheets/" + folderName + "/data.json");
   if (!f.is_open()) {
     HICL("Spritesheet").warn("failed to open spritesheet json file");
     return;

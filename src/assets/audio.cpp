@@ -1,15 +1,19 @@
 #include <opusfile.h>
 #include "audio.hpp"
 #include <algorithm>
+#include <fstream>
 #include <ranges>
 #include "../utils/util.hpp"
 #include "../utils/logging.hpp"
 
 namespace hic::Assets {
 
-Audio::Audio(const char *fileName): fileName(fileName) {
+Audio::Audio(std::string fileName): fileName(std::move(fileName)) {
   handlesMutex = SDL_CreateMutex();
+  assertNotNull(handlesMutex, "failed to create mutex");
+
   bufferMutex = SDL_CreateMutex();
+  assertNotNull(bufferMutex, "failed to create mutex");
 }
 
 Audio::~Audio() {
@@ -123,25 +127,25 @@ opus_int64 Audio::_tellCallback(void *stream) {
 }
 
 void Audio::preload() {
-  SDL_IOStream* file = SDL_IOFromFile(fileName, "rb");
+  std::ifstream file("audio/" + fileName + ".ogg", std::ios::binary | std::ios::ate);
   if (!file) {
-    HICL("Audio").warn("could not open provided audio file");
+    HICL("Audio").error("could not open audio file:", fileName);
     return;
   }
 
-  const Sint64 fileSize = SDL_GetIOSize(file);
+  const auto fileSize = file.tellg();
   if (fileSize <= 0) {
-    SDL_CloseIO(file);
-    HICL("Audio").warn("could not determine audio file size");
+    HICL("Audio").error("could not determine audio file size:", fileName);
     return;
   }
+
+  file.seekg(0, std::ios::beg);
 
   buffer.resize(fileSize);
-  const size_t bytesRead = SDL_ReadIO(file, buffer.data(), fileSize);
-  SDL_CloseIO(file);
-
-  if (bytesRead != fileSize)
-    panic("failed to read audio file fully");
+  if (!file.read(reinterpret_cast<char*>(buffer.data()), fileSize)) {
+    HICL("Audio").error("failed to read audio file:", fileName);
+    buffer.clear();
+  }
 }
 
 OggOpusFile* Audio::createHandle() {
