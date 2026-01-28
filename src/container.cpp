@@ -119,24 +119,27 @@ void Container::startLoop() {
 
       root = std::move(next);
       if (root)
-        root->iMount(this);
+        root->iPreMount(this);
     }
-
-    assetManager->processReady(renderer);
 
     const auto nowCounter = SDL_GetPerformanceCounter();
     const double deltaTime = (nowCounter - lastCounterTime) * 1000 / static_cast<float>(SDL_GetPerformanceFrequency());
     const auto time = SDL_GetTicks();
 
     if (loading) {
+      assetManager->processReady(renderer);
+
       const int pending = assetManager->getPendingCount();
       const int ready = assetManager->getReadyCount();
+      const bool isLoading = assetManager->isLoading();
 
       updateLoadingScreen(deltaTime, time);
       renderLoadingScreen(pending, ready);
 
-      if (pending == 0 && ready == 0)
+      if (pending == 0 && ready == 0 && !isLoading) {
         loading = false;
+        root->iPostMount();
+      }
     } else {
       update(deltaTime, time);
       render(time);

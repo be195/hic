@@ -22,6 +22,7 @@ private:
   mutable SDL_Mutex* readyMutex;
   SDL_Condition* cv;
   std::atomic<bool> running{true};
+  std::atomic<bool> loading{false};
   SDL_Thread* thread;
 
   std::unordered_map<std::string, std::weak_ptr<Base>> cache;
@@ -46,6 +47,7 @@ public:
 
   void processReady(SDL_Renderer* renderer);
   void clearCache();
+  bool isLoading() const;
   size_t getCacheSize() const;
   size_t getPendingCount() const;
   size_t getReadyCount() const;

@@ -45,7 +45,8 @@ public:
   void addChild(const std::shared_ptr<BaseComponent>& child);
   void removeChild(const std::shared_ptr<BaseComponent>& child);
 
-  void iMount(Container* cont, BaseComponent* par = nullptr);
+  void iPreMount(Container* cont, BaseComponent* par = nullptr);
+  void iPostMount();
   void iUpdate(float deltaTime, float time);
   void iRender(SDL_Renderer* renderer, float time);
   void iDestroy();
@@ -62,7 +63,7 @@ public:
   bool clip = true;
   float scale = 1.0f;
   float timeScale = 1.0f;
-  int fps = -1; // unlimited
+  int8_t fps = -1; // unlimited
   Rectangle boundingRect;
 
 protected:
@@ -86,6 +87,7 @@ protected:
   void requestRender() { needsRender = true; }
 
 private:
+  uint8_t mountedStage = 0;
   bool destroyed = false;
   bool needsRender = true;
 

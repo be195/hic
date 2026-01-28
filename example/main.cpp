@@ -31,9 +31,18 @@ public:
 
 class TestComponent : public hic::BaseComponent {
   public:
-    const hic::Assets::Image *file = nullptr;
+    std::shared_ptr<hic::Assets::BitmapFont> font;
+    std::shared_ptr<hic::Assets::Spritesheet> spritesheet;
+    std::shared_ptr<hic::Assets::AnimatedSpritesheetPart> animation;
+
+    void preload() override {
+      const auto am = container->getAssetManager();
+      font = am->load<hic::Assets::BitmapFont>("uni05_53");
+      spritesheet = am->load<hic::Assets::Spritesheet>("explosion");
+    }
 
     void mounted() override {
+      animation = spritesheet->animation("explosion");
       this->boundingRect.setW(200);
       this->boundingRect.setH(200);
 
@@ -47,11 +56,12 @@ class TestComponent : public hic::BaseComponent {
       const SDL_FRect rect = { 0, 0, this->boundingRect.w(), this->boundingRect.h() };
       SDL_RenderFillRect(r, &rect);
 
-      if (file) file->render(r, 0, 0);
+      font->renderText(r, 0, 0, "Hello, world!", SDL_Color{255,255,255,255});
+      animation->render(r, 20, 20);
     };
 
-    void setFile(const hic::Assets::Image* nf) {
-      file = nf;
+    void update(float deltaTime, float time) override {
+      animation->update(deltaTime);
     }
 
     hic::Cursor handleMouseEvent(const SDL_Event &e, float x, float y) override {
@@ -85,15 +95,6 @@ int main(const int argc, char* argv[]) {
   container->setLogicalWidth(320);
   container->setLogicalHeight(180);
   container->setRoot(test);
-
-  const auto assM = container->getAssetManager();
-  const auto audM = container->getAudioManager();
-
-  std::shared_ptr<hic::Assets::Audio> file = nullptr;
-  file = assM->loadWithCallback<hic::Assets::Audio>([audM, &file] {
-    const auto master = audM->getMaster();
-    const auto audioBus = master->createAudioBus(file);
-  }, "test2.ogg");
 
   SDL_SetRenderVSync(renderer, 1);
 

@@ -98,7 +98,7 @@ class HIC_API AnimatedSpritesheetPart {
 public:
   Event<void> loop;
 
-  explicit AnimatedSpritesheetPart(Spritesheet* spritesheet, const ssjson::SpritesheetAnimation* animData);
+  explicit AnimatedSpritesheetPart(Spritesheet* spritesheet, const ssjson::SpritesheetAnimation &animData);
 
   void render(SDL_Renderer* renderer, float x, float y);
   void update(float deltaTime);
@@ -132,6 +132,7 @@ public:
   void use(SDL_Renderer *renderer) override;
   void renderFrame(SDL_Renderer* renderer, const std::string &frame, float x, float y);
   std::shared_ptr<AnimatedSpritesheetPart> animation(const std::string &animation);
+  std::shared_ptr<AnimatedSpritesheetPart> createAnimation(const std::string &animation);
 
   std::string getCacheKey() const override { return "spr#" + folderName; }
 private:

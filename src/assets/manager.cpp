@@ -33,12 +33,16 @@ void Manager::threadLoop() {
     SDL_UnlockMutex(loadMutex);
 
     if (task.asset) {
+      loading.store(true, std::memory_order_release);
+
       HICL("AssetManager").info("preloading", task.asset);
       task.asset->preload();
 
       SDL_LockMutex(readyMutex);
       ready.push(std::move(task));
       SDL_UnlockMutex(readyMutex);
+
+      loading.store(false, std::memory_order_release);
     }
   }
 }
@@ -109,6 +113,10 @@ void Manager::processReady(SDL_Renderer* renderer) {
   }
 
   SDL_UnlockMutex(readyMutex);
+}
+
+bool Manager::isLoading() const {
+  return loading.load(std::memory_order_acquire);
 }
 
 void Manager::clearCache() {

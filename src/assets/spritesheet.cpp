@@ -13,10 +13,9 @@ namespace {
   const std::regex BRACE_PATTERN_REGEX(R"(\{[^}]+\})");
 }
 
-AnimatedSpritesheetPart::AnimatedSpritesheetPart(Spritesheet* spritesheet, const ssjson::SpritesheetAnimation* animData): spritesheet(spritesheet) {
-  assertNotNull(animData, "spritesheet animation passed as a null pointer");
-  frameTime = 1000.0f / static_cast<float>(animData->fps);
-  normalizeFrames(animData->frames);
+AnimatedSpritesheetPart::AnimatedSpritesheetPart(Spritesheet* spritesheet, const ssjson::SpritesheetAnimation &animData): spritesheet(spritesheet) {
+  frameTime = 1000.0f / static_cast<float>(animData.fps);
+  normalizeFrames(animData.frames);
   it = frames.begin();
 }
 
@@ -82,7 +81,7 @@ std::vector<std::string> AnimatedSpritesheetPart::expandBraces(const std::string
     if (from < 0 || to < 0 || from == to)
       throw std::invalid_argument("invalid range in brace expansion: \"" + full + "\"");
 
-    const int width = std::max({
+    const int width = std::min({
       0,
       static_cast<int>(fromStr.length()),
       static_cast<int>(toStr.length()),
@@ -228,9 +227,18 @@ void Spritesheet::preload() {
     return;
   }
 
-  data = nlohmann::json::parse(f).get<ssjson::SpritesheetData>();
-  if (!data.has_value()) {
-    HICL("Spritesheet").warn("failed to load spritesheet data");
+  try {
+    const auto jsonData = nlohmann::json::parse(f);
+    data = jsonData.get<ssjson::SpritesheetData>();
+    if (!data.has_value()) {
+      HICL("Spritesheet").error("failed to parse spritesheet data");
+      return;
+    }
+  } catch (const nlohmann::json::exception& e) {
+    HICL("Spritesheet").error("JSON parse error:", e.what());
+    return;
+  } catch (const std::exception& e) {
+    HICL("Spritesheet").error("failed to load spritesheet:", e.what());
     return;
   }
 
@@ -238,14 +246,13 @@ void Spritesheet::preload() {
 
   for (const auto& [name, animationData] : data->animations) {
     try {
-      auto anim = std::make_shared<AnimatedSpritesheetPart>(this, &animationData);
+      HICL("Spritesheet").debug("loading animation", name);
+      auto anim = std::make_shared<AnimatedSpritesheetPart>(this, animationData);
       cache[name] = std::move(anim);
     } catch (const std::exception& e) {
       HICL("Spritesheet").warn("failed to load animation", name.c_str(), e.what());
     }
   }
-
-  data->animations.clear();
 
   SDL_UnlockMutex(animationMutex);
 }
@@ -254,31 +261,63 @@ void Spritesheet::use(SDL_Renderer *renderer) {
   Image::use(renderer);
 }
 
-std::shared_ptr<AnimatedSpritesheetPart> Spritesheet::animation(const std::string &animation) {
+std::shared_ptr<AnimatedSpritesheetPart> Spritesheet::animation(const std::string& animation) {
   SDL_LockMutex(animationMutex);
 
   std::shared_ptr<AnimatedSpritesheetPart> result;
-  if (const auto it = cache.find(animation); it != cache.end())
+  if (const auto it = cache.find(animation); it != cache.end()) {
     result = it->second;
+  }
 
   SDL_UnlockMutex(animationMutex);
 
-  if (!result)
-    HICL("Spritesheet").warn("couldn't find animation", animation.c_str());
+  if (!result) {
+    HICL("Spritesheet").warn("animation not found in cache:", animation);
+  }
 
   return result;
+}
+
+std::shared_ptr<AnimatedSpritesheetPart> Spritesheet::createAnimation(const std::string& animation) {
+  SDL_LockMutex(animationMutex);
+
+  if (!data.has_value()) {
+    SDL_UnlockMutex(animationMutex);
+    HICL("Spritesheet").error("Spritesheet data not loaded");
+    return nullptr;
+  }
+
+  const auto it = data->animations.find(animation);
+  if (it == data->animations.end()) {
+    SDL_UnlockMutex(animationMutex);
+    HICL("Spritesheet").warn("animation not found in data:", animation);
+    return nullptr;
+  }
+
+  auto animData = it->second;
+  SDL_UnlockMutex(animationMutex);
+
+  return std::make_shared<AnimatedSpritesheetPart>(this, animData);
 }
 
 void Spritesheet::renderFrame(SDL_Renderer* renderer, const std::string &frame, const float x, const float y) {
   if (!texture) return;
 
   SDL_LockMutex(animationMutex);
+
+  if (!data.has_value()) {
+    SDL_UnlockMutex(animationMutex);
+    return;
+  }
+
   const auto frameIt = data->frames.find(frame);
   if (frameIt == data->frames.end()) {
     SDL_UnlockMutex(animationMutex);
     return;
   }
-  const ssjson::SpritesheetFrameData frameData = frameIt->second;
+
+  const auto frameData = frameIt->second;
+
   SDL_UnlockMutex(animationMutex);
 
   SDL_FRect destRect;

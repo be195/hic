@@ -15,8 +15,14 @@ void BaseComponent::addChild(const std::shared_ptr<BaseComponent>& child) {
   children.push_back(child);
   child->markAbsolutePosDirty();
 
-  if (container)
-    child->iMount(container, this);
+  if (container) {
+    // we can't predict when it will load the assets that it requires,
+    // so all the resposibility goes to the parent component
+    if (mountedStage >= 1)
+      child->iPreMount(container, this);
+    if (mountedStage >= 2)
+      child->iPostMount();
+  }
 }
 
 void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
@@ -26,25 +32,35 @@ void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
   }
 }
 
-void BaseComponent::iMount(Container* cont, BaseComponent* par) {
-  const bool first = !container;
+void BaseComponent::iPreMount(Container* cont, BaseComponent* par) {
+  const bool firstMount = mountedStage == 0;
   container = cont;
   parent = par;
   destroyed = false;
 
-  logger.info("Mounting component");
-  boundingRect.change += [this](const char* prop, float old, float nw) {
-    this->markAbsolutePosDirty();
-    this->checkMouse();
-  };
+  logger.info("mounting component (stage 1)");
+
+  if (firstMount) {
+    boundingRect.change += [this](const char* prop, float old, float nw) {
+      this->markAbsolutePosDirty();
+      this->checkMouse();
+    };
+  }
 
   for (const auto& child : children)
-    child->iMount(container, this);
+    child->iPreMount(container, this);
 
-  if (first) preload();
+  mountedStage = 1;
+  preload();
+}
+
+void BaseComponent::iPostMount() {
+  logger.info("mounting component (stage 2)");
+  for (const auto& child : children)
+    child->iPostMount();
+
+  mountedStage = 2;
   mounted();
-
-  logger.info("Mounted component");
 }
 
 void BaseComponent::iUpdate(float deltaTime, const float time) {
@@ -167,7 +183,7 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
 }
 
 void BaseComponent::iDestroy() {
-  if (!destroyed) return;
+  if (destroyed) return;
   logger.info("Destroying component");
 
   for (const auto& child : children)

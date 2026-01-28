@@ -51,7 +51,10 @@ void BitmapFont::preload() {
   }
 
   for (const auto& page : font->pages) {
-    const auto surface = loadSurfaceFromFile(("fonts/" + folderName + "/" + folderName + "_" + page + ".png").c_str());
+    const auto pagePath = "fonts/" + folderName + "/" + page;
+    HICL("BitmapFont").debug("attempting to load page", pagePath);
+
+    const auto surface = loadSurfaceFromFile(pagePath.c_str());
     if (surface)
       surfaces.insert({page, surface});
     else {
