@@ -45,6 +45,7 @@ CPMAddPackage(
 )
 
 add_library(hic ${HIC_LIB_TYPE}
+        src/assets/base.cpp
         src/assets/audio.cpp
         src/assets/image.cpp
         src/assets/spritesheet.cpp

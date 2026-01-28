@@ -1,5 +1,5 @@
 #include <SDL3/SDL.h>
-#include "base.cpp"
+#include "base.hpp"
 #include "image.hpp"
 #include "../utils/util.hpp"
 #include "../utils/logging.hpp"

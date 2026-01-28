@@ -18,4 +18,7 @@ struct HIC_API Base {
   virtual std::string getCacheKey() const { return ""; }
 };
 
+static SDL_Surface* createPlaceholderSurface();
+SDL_Surface* loadSurfaceFromFile(const char* fileName);
+
 } // namespace hic::Assets

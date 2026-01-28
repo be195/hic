@@ -8,7 +8,7 @@ class HIC_API BaseEffect {
 public:
   virtual ~BaseEffect() = default;
 
-  virtual void apply(float* samples, int frames);
+  virtual void apply(float* samples, int frames) {}
 };
 
 }

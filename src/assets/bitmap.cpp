@@ -3,7 +3,7 @@
 #include <ranges>
 #include "../utils/logging.hpp"
 #include "../utils/util.hpp"
-#include "base.cpp"
+#include "base.hpp"
 
 namespace hic::Assets {
 
