@@ -22,8 +22,7 @@ class HIC_API Container; // will be declared later
 
 class HIC_API BaseComponent : public AnimationMixin {
 public:
-  // FIXME: not enough clarity! typeid(*this).name() hack just returns "class hic::BaseComponent"
-  BaseComponent() : logger(typeid(*this).name()) {};
+  explicit BaseComponent(const std::string& loggerTag = "BaseComponent") : logger(std::move(loggerTag)) {};
   virtual ~BaseComponent();
 
   virtual void preload() {}
