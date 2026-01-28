@@ -54,7 +54,7 @@ features, like:
 class MyComponent : public hic::BaseComponent {
   void preload() override {
     // called once on first mount - load assets here
-    // but don't get confused - this runs on main thread
+    // don't get confused! - preload runs on main thread
   }
 
   void mounted() override {
