@@ -4,6 +4,7 @@ project(hic VERSION 1.0.0)
 include(cmake/CPM.cmake)
 
 option(HIC_BUILD_SHARED "Build hic as a shared library" OFF)
+option(HIC_BUILD_EXAMPLE "Build examples" OFF)
 set(HIC_LIB_TYPE STATIC)
 if(HIC_BUILD_SHARED)
     set(HIC_LIB_TYPE SHARED)
@@ -128,16 +129,18 @@ target_link_libraries(hic PUBLIC
         nlohmann_json::nlohmann_json
 )
 
-# example build
-add_executable(hicex WIN32 example/main.cpp)
-target_sources(hicex PUBLIC "${HIC_GENERATED_HEADER}") # fucker
-target_link_libraries(hicex PRIVATE hic)
+if(HIC_BUILD_EXAMPLE)
+    # example build
+    add_executable(hicex WIN32 example/main.cpp)
+    target_sources(hicex PUBLIC "${HIC_GENERATED_HEADER}") # fucker
+    target_link_libraries(hicex PRIVATE hic)
 
-if(WIN32)
-    add_custom_command(TARGET hicex POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:hicex>
-            $<TARGET_FILE_DIR:hicex>
-            COMMAND_EXPAND_LISTS
-    )
+    if(WIN32)
+        add_custom_command(TARGET hicex POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:hicex>
+                $<TARGET_FILE_DIR:hicex>
+                COMMAND_EXPAND_LISTS
+        )
+    endif()
 endif()
