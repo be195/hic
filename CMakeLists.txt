@@ -8,7 +8,6 @@ option(HIC_BUILD_EXAMPLE "Build examples" OFF)
 set(HIC_LIB_TYPE STATIC)
 if(HIC_BUILD_SHARED)
     set(HIC_LIB_TYPE SHARED)
-    set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
 endif()
 
 CPMAddPackage(
