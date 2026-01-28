@@ -24,7 +24,7 @@ public:
   float getLineHeight(float scale = 1.0f) const;
   float measureText(const std::string& text, float scale = 1.0f) const;
 
-  std::string getCacheKey() const override { return folderName; }
+  std::string getCacheKey() const override { return "bmf#" + folderName; }
 private:
   bool ok = false;
   std::unique_ptr<BMFont> font;

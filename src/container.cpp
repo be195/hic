@@ -17,15 +17,21 @@ Container::~Container() {
     root->iDestroy();
   if (assetManager) delete assetManager;
   if (audioManager) delete audioManager;
+  if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
 }
 
-void Container::setRoot(std::shared_ptr<BaseComponent> newRoot) {
-  if (root)
-    root->iDestroy();
+void Container::setRoot(const std::shared_ptr<BaseComponent> &newRoot) {
+  next = newRoot;
+  loading = true;
+}
 
-  root = std::move(newRoot);
-  if (root)
-    root->iMount(this);
+void Container::setRoot(const std::string &name) {
+  if (const auto it = roots.find(name); it != roots.end())
+    setRoot(it->second);
+}
+
+void Container::define(const std::string &name, const std::shared_ptr<BaseComponent> &newRoot) {
+  roots.insert({name, newRoot});
 }
 
 void Container::update(const float deltaTime, const float time) const {
@@ -107,14 +113,34 @@ void Container::startLoop() {
       SDL_SetRenderLogicalPresentation(renderer, lWidth, lHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
     }
 
+    if (next) {
+      if (root)
+        root->iDestroy();
+
+      root = std::move(next);
+      if (root)
+        root->iMount(this);
+    }
+
     assetManager->processReady(renderer);
 
     const auto nowCounter = SDL_GetPerformanceCounter();
     const double deltaTime = (nowCounter - lastCounterTime) * 1000 / static_cast<float>(SDL_GetPerformanceFrequency());
     const auto time = SDL_GetTicks();
 
-    update(deltaTime, time);
-    render(time);
+    if (loading) {
+      const int pending = assetManager->getPendingCount();
+      const int ready = assetManager->getReadyCount();
+
+      updateLoadingScreen(deltaTime, time);
+      renderLoadingScreen(pending, ready);
+
+      if (pending == 0 && ready == 0)
+        loading = false;
+    } else {
+      update(deltaTime, time);
+      render(time);
+    }
 
     lastCounterTime = nowCounter;
   }
@@ -143,8 +169,10 @@ void Container::updateCursor(const Cursor cursor) {
       sdlCursor = SDL_SYSTEM_CURSOR_DEFAULT; break;
   }
 
+  if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
   SDL_Cursor* c = SDL_CreateSystemCursor(sdlCursor);
   SDL_SetCursor(c);
+  currentSDLCursor = c;
 }
 
 }

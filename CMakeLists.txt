@@ -44,55 +44,6 @@ CPMAddPackage(
         GIT_TAG v3.12.0
 )
 
-set(SINGLE_HEADER "// hic version ${PROJECT_VERSION}\n#pragma once\n\n")
-
-if(NOT HIC_BUILD_SHARED)
-    string(APPEND SINGLE_HEADER "// static build\n#define HIC_API\n")
-endif()
-#
-set(HIC_BASE_HEADERS
-        utils/hicapi.hpp
-        utils/logging.hpp
-        utils/events.hpp
-        utils/geometry.hpp
-        utils/easing.hpp
-        utils/animation.hpp
-        utils/util.hpp
-        utils/bmfont.hpp
-        assets/base.hpp
-        assets/audio.hpp
-        assets/image.hpp
-        assets/spritesheet.hpp
-        src/assets/bitmap.hpp
-        assets/manager.hpp
-        audio/const.hpp
-        audio/effect.hpp
-        audio/stream.hpp
-        audio/bus.hpp
-        audio/manager.hpp
-        basecomponent.hpp
-        container.hpp
-        watchdog.hpp
-)
-
-foreach(header ${HIC_BASE_HEADERS})
-    if(NOT HIC_BUILD_SHARED AND header STREQUAL "utils/hicapi.hpp")
-        continue()
-    endif()
-
-    set(header_path "${CMAKE_CURRENT_SOURCE_DIR}/src/${header}")
-    if(EXISTS ${header_path})
-        file(READ ${header_path} content)
-        string(REGEX REPLACE "#pragma[ \t]+once[ \t]*\n" "" content "${content}")
-        string(REGEX REPLACE "#include[ \t]*\"[^\"]+\"[ \t]*\n" "" content "${content}")
-
-        string(APPEND SINGLE_HEADER "\n// --- ${header} ---\n${content}\n")
-    endif()
-endforeach()
-
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/include/hic.hpp" "${SINGLE_HEADER}")
-
 add_library(hic ${HIC_LIB_TYPE}
         src/assets/audio.cpp
         src/assets/image.cpp
@@ -114,6 +65,56 @@ if(HIC_BUILD_SHARED)
     target_compile_definitions(hic PUBLIC HIC_BUILD_SHARED)
 endif()
 
+set(HIC_BASE_HEADERS
+        utils/hicapi.hpp
+        utils/logging.hpp
+        utils/events.hpp
+        utils/geometry.hpp
+        utils/easing.hpp
+        utils/animation.hpp
+        utils/util.hpp
+        utils/bmfont.hpp
+        assets/base.hpp
+        assets/audio.hpp
+        assets/image.hpp
+        assets/spritesheet.hpp
+        assets/bitmap.hpp
+        assets/manager.hpp
+        audio/const.hpp
+        audio/effect.hpp
+        audio/stream.hpp
+        audio/bus.hpp
+        audio/manager.hpp
+        basecomponent.hpp
+        container.hpp
+        watchdog.hpp
+)
+
+set(HIC_HEADER_INPUTS)
+foreach(header ${HIC_BASE_HEADERS})
+    if(NOT HIC_BUILD_SHARED AND header STREQUAL "utils/hicapi.hpp")
+        continue()
+    endif()
+    list(APPEND HIC_HEADER_INPUTS "${CMAKE_CURRENT_SOURCE_DIR}/src/${header}")
+endforeach()
+
+set(HIC_GENERATED_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/hic.hpp")
+
+add_custom_command(
+        OUTPUT "${HIC_GENERATED_HEADER}"
+        COMMAND ${CMAKE_COMMAND}
+            "-DDOUTPUT=${HIC_GENERATED_HEADER}"
+            "-DHIC_HEADER_INPUTS=${HIC_HEADER_INPUTS}"
+            "-DPROJECT_VERSION=${PROJECT_VERSION}"
+            "-DHIC_BUILD_SHARED=${HIC_BUILD_SHARED}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/genhead.cmake"
+        DEPENDS ${HIC_HEADER_INPUTS}
+        COMMENT "Bundling hic.hpp..."
+        VERBATIM
+)
+
+target_sources(hic PUBLIC "${HIC_GENERATED_HEADER}")
+
 target_include_directories(hic
         PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -129,6 +130,7 @@ target_link_libraries(hic PUBLIC
 
 # example build
 add_executable(hicex WIN32 example/main.cpp)
+target_sources(hicex PUBLIC "${HIC_GENERATED_HEADER}") # fucker
 target_link_libraries(hicex PRIVATE hic)
 
 if(WIN32)

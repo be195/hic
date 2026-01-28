@@ -6,6 +6,10 @@
 
 namespace hic {
 
+BaseComponent::~BaseComponent() {
+  if (!destroyed) iDestroy();
+}
+
 void BaseComponent::addChild(const std::shared_ptr<BaseComponent>& child) {
   child->parent = this;
   children.push_back(child);
@@ -23,8 +27,10 @@ void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
 }
 
 void BaseComponent::iMount(Container* cont, BaseComponent* par) {
+  const bool first = !container;
   container = cont;
   parent = par;
+  destroyed = false;
 
   logger.info("Mounting component");
   boundingRect.change += [this](const char* prop, float old, float nw) {
@@ -35,7 +41,7 @@ void BaseComponent::iMount(Container* cont, BaseComponent* par) {
   for (const auto& child : children)
     child->iMount(container, this);
 
-  preload();
+  if (first) preload();
   mounted();
 
   logger.info("Mounted component");
@@ -161,6 +167,7 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
 }
 
 void BaseComponent::iDestroy() {
+  if (!destroyed) return;
   logger.info("Destroying component");
 
   for (const auto& child : children)
@@ -171,6 +178,7 @@ void BaseComponent::iDestroy() {
 
   parent = nullptr;
   container = nullptr;
+  destroyed = true;
 }
 
 Cursor BaseComponent::iHandleMouseEvent(const SDL_Event& e, float x, float y) {

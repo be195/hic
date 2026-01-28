@@ -10,7 +10,7 @@ struct HIC_API Position {
   float y = 0.0f;
 
   Position() = default;
-  Position(float x, float y) : x(x), y(y) {}
+  Position(const float x, const float y) : x(x), y(y) {}
 
   Position operator+(const Position& other) const {
     return {x + other.x, y + other.y};
@@ -38,7 +38,7 @@ public:
   [[nodiscard]] float x() const { return pos_.x; }
   [[nodiscard]] float y() const { return pos_.y; }
 
-  Rectangle& setX(float x) {
+  Rectangle& setX(const float x) {
     if (x != pos_.x) {
       pos_.x = x;
       change("x", pos_.x, x);
@@ -46,7 +46,7 @@ public:
     return *this;
   }
 
-  Rectangle& setY(float y) {
+  Rectangle& setY(const float y) {
     if (y != pos_.y) {
       pos_.y = y;
       change("y", pos_.y, y);
@@ -61,7 +61,7 @@ public:
   [[nodiscard]] float w() const { return size_.w; }
   [[nodiscard]] float h() const { return size_.h; }
 
-  Rectangle& setW(float w) {
+  Rectangle& setW(const float w) {
     if (w != size_.w) {
       size_.w = w;
       change("w", size_.w, w);
@@ -69,7 +69,7 @@ public:
     return *this;
   }
 
-  Rectangle& setH(float h) {
+  Rectangle& setH(const float h) {
     if (h != size_.h) {
       size_.h = h;
       change("h", size_.h, h);
@@ -81,14 +81,14 @@ public:
     return setW(size.w).setH(size.h);
   }
 
-  Rectangle& setBounds(float x, float y, float w, float h) {
+  Rectangle& setBounds(const float x, const float y, const float w, const float h) {
     return setX(x).setY(y).setW(w).setH(h);
   }
 
   [[nodiscard]] const Position& pos() const { return pos_; }
   [[nodiscard]] const Size& size() const { return size_; }
 
-  [[nodiscard]] bool contains(float px, float py) const {
+  [[nodiscard]] bool contains(const float px, const float py) const {
     return px >= pos_.x && px < pos_.x + size_.w &&
            py >= pos_.y && py < pos_.y + size_.h;
   }

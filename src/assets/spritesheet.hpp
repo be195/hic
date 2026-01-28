@@ -133,7 +133,7 @@ public:
   void renderFrame(SDL_Renderer* renderer, const std::string &frame, float x, float y);
   std::shared_ptr<AnimatedSpritesheetPart> animation(const std::string &animation);
 
-  std::string getCacheKey() const override { return folderName; }
+  std::string getCacheKey() const override { return "spr#" + folderName; }
 private:
   std::optional<ssjson::SpritesheetData> data;
   std::unordered_map<std::string, std::shared_ptr<AnimatedSpritesheetPart>> cache;

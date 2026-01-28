@@ -22,7 +22,7 @@ public:
   void setScaleMode(SDL_ScaleMode scaleMode) const;
   SDL_ScaleMode getScaleMode() const;
 
-  std::string getCacheKey() const override { return fileName; }
+  std::string getCacheKey() const override { return "i#" + fileName; }
 private:
   SDL_Surface* surface = nullptr;
 };

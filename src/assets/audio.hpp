@@ -30,7 +30,7 @@ public:
 
   void preload() override;
 
-  std::string getCacheKey() const override { return fileName; }
+  std::string getCacheKey() const override { return "aud#" + fileName; }
 private:
   std::vector<unsigned char> buffer;
 

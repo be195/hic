@@ -24,7 +24,7 @@ class HIC_API BaseComponent : public AnimationMixin {
 public:
   // FIXME: not enough clarity! typeid(*this).name() hack just returns "class hic::BaseComponent"
   BaseComponent() : logger(typeid(*this).name()) {};
-  virtual ~BaseComponent() = default;
+  virtual ~BaseComponent();
 
   virtual void preload() {}
   virtual void mounted() {}
@@ -87,6 +87,7 @@ protected:
   void requestRender() { needsRender = true; }
 
 private:
+  bool destroyed = false;
   bool needsRender = true;
 
   void triggerMouseEnter();
