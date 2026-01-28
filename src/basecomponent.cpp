@@ -47,11 +47,12 @@ void BaseComponent::iPreMount(Container* cont, BaseComponent* par) {
     };
   }
 
+  preload();
+
   for (const auto& child : children)
     child->iPreMount(container, this);
 
   mountedStage = 1;
-  preload();
 }
 
 void BaseComponent::iPostMount() {
