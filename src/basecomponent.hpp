@@ -26,6 +26,7 @@ public:
   virtual ~BaseComponent();
 
   virtual void preload() {}
+  virtual void premounted() {}
   virtual void mounted() {}
   virtual void destroy() {}
 

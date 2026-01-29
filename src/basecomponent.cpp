@@ -47,7 +47,8 @@ void BaseComponent::iPreMount(Container* cont, BaseComponent* par) {
     };
   }
 
-  preload();
+  if (firstMount) preload();
+  premounted();
 
   for (const auto& child : children)
     child->iPreMount(container, this);
