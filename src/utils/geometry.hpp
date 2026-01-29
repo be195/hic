@@ -60,6 +60,12 @@ public:
 
   [[nodiscard]] float w() const { return size_.w; }
   [[nodiscard]] float h() const { return size_.h; }
+  void w(const float newW) {
+    setW(newW);
+  }
+  void h(const float newH) {
+    setH(newH);
+  }
 
   Rectangle& setW(const float w) {
     if (w != size_.w) {

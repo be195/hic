@@ -50,6 +50,7 @@ add_library(hic ${HIC_LIB_TYPE}
         src/assets/image.cpp
         src/assets/spritesheet.cpp
         src/assets/bitmap.cpp
+        src/assets/shader.cpp
         src/assets/manager.cpp
         src/audio/stream.cpp
         src/audio/bus.cpp
@@ -80,6 +81,7 @@ set(HIC_BASE_HEADERS
         assets/image.hpp
         assets/spritesheet.hpp
         assets/bitmap.hpp
+        assets/shader.hpp
         assets/manager.hpp
         audio/const.hpp
         audio/effect.hpp
