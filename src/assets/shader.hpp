@@ -3,6 +3,7 @@
 #include "base.hpp"
 #include "../utils/hicapi.hpp"
 #include <SDL3/SDL.h>
+#include "../utils/logging.hpp"
 
 namespace hic::Assets {
 
@@ -19,7 +20,17 @@ public:
   static void pop(SDL_Renderer* renderer);
 
   template<typename Options>
-  void push(SDL_Renderer* renderer, const Options& options) const;
+  void push(SDL_Renderer* renderer, const Options& options) const {
+    if (sizeof(Options) % 16 != 0) {
+      HICL("Shader").error("push Options struct must be 16-byte aligned");
+      return;
+    }
+
+    if (renderState) {
+      SDL_SetGPURenderState(renderer, renderState);
+      SDL_PushGPUFragmentUniformData(renderer, 0, &options, sizeof(options));
+    }
+  };
 
   std::string getCacheKey() const override { return "sh#" + fileName; }
 private:
