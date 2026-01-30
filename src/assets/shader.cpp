@@ -39,7 +39,11 @@ void Shader::use(SDL_Renderer *renderer) {
   shaderInfo.code_size = dataSize;
   shaderInfo.code = static_cast<const Uint8*>(data);
   shaderInfo.entrypoint = HIC_SHADER_ENTRYPOINT;
+#ifdef _WIN32
+  shaderInfo.format = SDL_GPU_SHADERFORMAT_DXIL;
+#else
   shaderInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
+#endif
   shaderInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
 
   SDL_GPUShader* shader = SDL_CreateGPUShader(device, &shaderInfo);
