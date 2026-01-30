@@ -28,13 +28,16 @@ public:
 
     if (renderState) {
       SDL_SetGPURenderState(renderer, renderState);
-      SDL_PushGPUFragmentUniformData(renderer, 0, &options, sizeof(options));
+
+      if (SDL_GPUCommandBuffer* cmdBuf = SDL_AcquireGPUCommandBuffer(device); cmdBuf)
+        SDL_PushGPUFragmentUniformData(cmdBuf, 0, &options, sizeof(options));
     }
   };
 
   std::string getCacheKey() const override { return "sh#" + fileName; }
 private:
   SDL_GPURenderState* renderState = nullptr;
+  SDL_GPUDevice* device = nullptr;
 
   void* data = nullptr;
   size_t dataSize = 0;

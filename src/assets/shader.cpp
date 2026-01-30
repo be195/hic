@@ -33,7 +33,7 @@ void Shader::preload() {
 void Shader::use(SDL_Renderer *renderer) {
   if (!read || !data || renderState) return;
 
-  SDL_GPUDevice* device = SDL_GetGPURendererDevice(renderer);
+  device = SDL_GetGPURendererDevice(renderer);
 
   SDL_GPUShaderCreateInfo shaderInfo = {};
   shaderInfo.code_size = dataSize;
