@@ -49,6 +49,7 @@ void Shader::use(SDL_Renderer *renderer) {
   SDL_GPUShader* fragShader = SDL_CreateGPUShader(device, &shaderInfo);
   if (!fragShader) {
     HICL("Shader").error("failed to create fragment shader:", fileName);
+    HICL("Shader").error(SDL_GetError());
     SDL_free(data);
     data = nullptr;
     return;
