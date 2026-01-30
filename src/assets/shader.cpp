@@ -59,19 +59,6 @@ void Shader::push(SDL_Renderer* renderer) const {
     SDL_SetGPURenderState(renderer, renderState);
 }
 
-template<typename Options>
-void Shader::pusho(SDL_Renderer* renderer, const Options& options) const {
-  if (sizeof(Options) % 16 != 0) {
-    HICL("Shader").error("push Options struct must be 16-byte aligned");
-    return;
-  }
-
-  if (renderState) {
-    SDL_SetGPURenderState(renderer, renderState);
-    SDL_PushGPUFragmentUniformData(renderer, 0, &options, sizeof(options));
-  }
-}
-
 void Shader::pop(SDL_Renderer* renderer) {
   SDL_SetGPURenderState(renderer, nullptr);
 }
