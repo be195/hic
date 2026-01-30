@@ -16,18 +16,22 @@ Shader::~Shader() {
     SDL_DestroyGPURenderState(renderState);
     renderState = nullptr;
   }
+
+  device = nullptr;
 }
 
 void Shader::preload() {
   size_t loadedDataSize;
   // ReSharper disable once CppTooWideScope
-  void* loadedData = SDL_LoadFile(("shaders/" + fileName + ".spv").c_str(), &loadedDataSize);
+  data = SDL_LoadFile(("shaders/fr_" + fileName + ".spv").c_str(), &loadedDataSize);
 
-  if (loadedData) {
-    read = true;
-    data = loadedData;
-    dataSize = loadedDataSize;
+  if (!data) {
+    HICL("Shader").error("failed to load fragment shader:", fileName);
+    return;
   }
+
+  read = true;
+  dataSize = loadedDataSize;
 }
 
 void Shader::use(SDL_Renderer *renderer) {
@@ -42,16 +46,21 @@ void Shader::use(SDL_Renderer *renderer) {
   shaderInfo.format = SDL_GPU_SHADERFORMAT_SPIRV;
   shaderInfo.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
 
-  SDL_GPUShader* shader = SDL_CreateGPUShader(device, &shaderInfo);
-
+  SDL_GPUShader* fragShader = SDL_CreateGPUShader(device, &shaderInfo);
+  if (!fragShader) {
+    HICL("Shader").error("failed to create fragment shader:", fileName);
+    SDL_free(data);
+    data = nullptr;
+    return;
+  }
   SDL_GPURenderStateCreateInfo stateInfo = {};
-  stateInfo.fragment_shader = shader;
+  stateInfo.fragment_shader = fragShader;
 
   renderState = SDL_CreateGPURenderState(renderer, &stateInfo);
 
   SDL_free(data);
   data = nullptr;
-  SDL_ReleaseGPUShader(device, shader);
+  SDL_ReleaseGPUShader(device, fragShader);
 }
 
 void Shader::push(SDL_Renderer* renderer) const {

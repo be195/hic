@@ -29,8 +29,10 @@ public:
     if (renderState) {
       SDL_SetGPURenderState(renderer, renderState);
 
-      if (SDL_GPUCommandBuffer* cmdBuf = SDL_AcquireGPUCommandBuffer(device); cmdBuf)
+      if (SDL_GPUCommandBuffer* cmdBuf = SDL_AcquireGPUCommandBuffer(device); cmdBuf) {
         SDL_PushGPUFragmentUniformData(cmdBuf, 0, &options, sizeof(options));
+        SDL_SubmitGPUCommandBuffer(cmdBuf);
+      }
     }
   };
 
