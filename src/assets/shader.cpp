@@ -150,7 +150,7 @@ bool GPUShader::createPipeline() {
 
   SDL_GPUMultisampleState multisample{};
   multisample.sample_count = SDL_GPU_SAMPLECOUNT_1;
-  multisample.sample_mask = 0xFFFFFFFF;
+  multisample.sample_mask = 0;
   pipelineInfo.multisample_state = multisample;
 
   SDL_GPUDepthStencilState depthStencil{};
