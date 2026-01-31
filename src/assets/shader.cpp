@@ -120,10 +120,21 @@ bool GPUShader::createPipeline() {
   SDL_GPUGraphicsPipelineCreateInfo pipelineInfo{};
 
   SDL_GPUVertexInputState vertexInput{};
-  vertexInput.vertex_buffer_descriptions = config.vertexBuffers.data();
-  vertexInput.num_vertex_buffers = config.vertexBuffers.size();
-  vertexInput.vertex_attributes = config.vertexAttributes.data();
-  vertexInput.num_vertex_attributes = config.vertexAttributes.size();
+  if (config.vertexBuffers.empty()) {
+    vertexInput.vertex_buffer_descriptions = nullptr;
+    vertexInput.num_vertex_buffers = 0;
+  } else {
+    vertexInput.vertex_buffer_descriptions = config.vertexBuffers.data();
+    vertexInput.num_vertex_buffers = config.vertexBuffers.size();
+  }
+
+  if (config.vertexAttributes.empty()) {
+    vertexInput.vertex_attributes = nullptr;
+    vertexInput.num_vertex_attributes = 0;
+  } else {
+    vertexInput.vertex_attributes = config.vertexAttributes.data();
+    vertexInput.num_vertex_attributes = config.vertexAttributes.size();
+  }
   pipelineInfo.vertex_input_state = vertexInput;
 
   pipelineInfo.primitive_type = config.primitiveType;
