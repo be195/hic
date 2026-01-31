@@ -3,7 +3,7 @@
 
 #define HIC_SHADER_ENTRYPOINT "main"
 
-#if defined(_WIN32) || defined(WIN32)
+#if defined(_WIN32) || defined(__CYGWIN__)
 #define HIC_GPUSHADER_EXT ".dxil"
 #define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_DXIL
 #elif defined(__APPLE__)
