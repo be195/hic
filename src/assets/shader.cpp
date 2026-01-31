@@ -6,6 +6,9 @@
 #ifdef WIN32
 #define HIC_GPUSHADER_EXT ".dxil"
 #define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_DXIL
+#elif defined(__APPLE__)
+#define HIC_GPUSHADER_EXIT ".metal"
+#define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_MSL
 #else
 #define HIC_GPUSHADER_EXT ".spv"
 #define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_SPIRV
@@ -131,8 +134,20 @@ bool GPUShader::createPipeline() {
   blendState.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
   blendState.color_write_mask = 0xF;
 
+  SDL_GPUColorTargetDescription colorTargetDesc{};
+  colorTargetDesc.format = config.colorTargetFormat;
+
+  colorTargetDesc.blend_state.enable_blend = config.blendEnable;
+  colorTargetDesc.blend_state.src_color_blendfactor = config.srcColorBlend;
+  colorTargetDesc.blend_state.dst_color_blendfactor = config.dstColorBlend;
+  colorTargetDesc.blend_state.color_blend_op = config.colorBlendOp;
+  colorTargetDesc.blend_state.src_alpha_blendfactor = config.srcAlphaBlend;
+  colorTargetDesc.blend_state.dst_alpha_blendfactor = config.dstAlphaBlend;
+  colorTargetDesc.blend_state.alpha_blend_op = config.alphaBlendOp;
+  colorTargetDesc.blend_state.color_write_mask = 0xF; // RGBA
+
   SDL_GPUGraphicsPipelineTargetInfo targetInfo{};
-  targetInfo.color_target_descriptions = &blendState;
+  targetInfo.color_target_descriptions = &colorTargetDesc;
   targetInfo.num_color_targets = 1;
   pipelineInfo.target_info = targetInfo;
 
@@ -143,6 +158,9 @@ bool GPUShader::createPipeline() {
   if (pipeline != nullptr) {
     SDL_free(vertexData);
     SDL_free(fragmentData);
+  } else {
+    HICL("GPUShader").error("failed to create graphics pipeline");
+    HICL("GPUShader").error(SDL_GetError());
   }
   vertexData = fragmentData = nullptr;
 

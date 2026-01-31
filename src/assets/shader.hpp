@@ -21,11 +21,19 @@ public:
     bool blendEnable = true;
     SDL_GPUBlendFactor srcColorBlend = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
     SDL_GPUBlendFactor dstColorBlend = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    SDL_GPUBlendOp colorBlendOp = SDL_GPU_BLENDOP_ADD;
+    SDL_GPUBlendFactor srcAlphaBlend = SDL_GPU_BLENDFACTOR_ONE;
+    SDL_GPUBlendFactor dstAlphaBlend = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    SDL_GPUBlendOp alphaBlendOp = SDL_GPU_BLENDOP_ADD;
 
     bool depthTestEnable = false;
     bool depthWriteEnable = false;
+    SDL_GPUCompareOp depthCompareOp = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
 
     SDL_GPUPrimitiveType primitiveType = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+
+    SDL_GPUTextureFormat colorTargetFormat = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    SDL_GPUTextureFormat depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
 
     uint32_t vertexUniformBuffers = 0;
     uint32_t fragmentUniformBuffers = 0;
