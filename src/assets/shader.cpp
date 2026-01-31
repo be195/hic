@@ -134,7 +134,7 @@ bool GPUShader::createPipeline() {
   rasterizer.fill_mode = config.fillMode;
   rasterizer.cull_mode = config.cullMode;
   rasterizer.front_face = config.frontFace;
-  rasterizer.enable_depth_clip = true;
+  rasterizer.enable_depth_clip = false;
   pipelineInfo.rasterizer_state = rasterizer;
 
   SDL_GPUMultisampleState multisample{};
