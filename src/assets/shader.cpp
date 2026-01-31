@@ -26,6 +26,7 @@ GPUShader::~GPUShader() {
   if (fragmentData) SDL_free(fragmentData);
   if (defaultSampler) SDL_ReleaseGPUSampler(device, defaultSampler);
   if (pipeline) SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
+  if (bridgeTexture) SDL_DestroyTexture(bridgeTexture);
 }
 
 void GPUShader::preload() {
@@ -59,30 +60,27 @@ void GPUShader::use(SDL_Renderer* renderer) {
     return;
   }
 
-  SDL_GPUTextureFormat formatsToTry[] = {
-    SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM,
-    SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
-    SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB,
-    SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB
-  };
+  config.colorTargetFormat = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+  createPipeline();
+  createDefaultSampler();
+}
 
-  for (const auto format : formatsToTry) {
-    config.colorTargetFormat = format;
-    HICL("GPUShader").info("Trying format:", static_cast<int>(format));
+void GPUShader::initBridge(SDL_Renderer *r, const int width, const int height) {
+  bridgeTexture = SDL_CreateTexture(r,
+                                    SDL_PIXELFORMAT_RGBA8888,
+                                    SDL_TEXTUREACCESS_TARGET,
+                                    width, height);
 
-    if (createPipeline()) {
-      HICL("GPUShader").info("SUCCESS with format:", static_cast<int>(format));
-      break;
-    }
-
-    HICL("GPUShader").error("Failed with format:", static_cast<int>(format));
-    if (pipeline) {
-      SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
-      pipeline = nullptr;
-    }
+  if (!bridgeTexture) {
+    HICL("GPUShader").error("Failed to create bridge texture:", SDL_GetError());
+    return;
   }
 
-  createDefaultSampler();
+  gpuHandle = static_cast<SDL_GPUTexture *>(SDL_GetPointerProperty(
+    SDL_GetTextureProperties(bridgeTexture),
+    SDL_PROP_TEXTURE_CREATE_GPU_TEXTURE_POINTER,
+    nullptr
+  ));
 }
 
 bool GPUShader::createPipeline() {
@@ -226,30 +224,19 @@ void GPUShader::createDefaultSampler() {
   defaultSampler = SDL_CreateGPUSampler(device, &samplerInfo);
 }
 
-void GPUShader::begin(SDL_Renderer* renderer) {
+void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height) {
   if (!pipeline) return;
+  if (!bridgeTexture) initBridge(renderer, width, height);
 
   activeRenderer = renderer;
   commandBuffer = SDL_AcquireGPUCommandBuffer(device);
 
-  if (!SDL_WaitAndAcquireGPUSwapchainTexture(
-    commandBuffer,
-    SDL_GetRenderWindow(renderer),
-    &renderTarget,
-    nullptr,
-    nullptr
-  )) {
-    SDL_SubmitGPUCommandBuffer(commandBuffer);
-    commandBuffer = nullptr;
-    return;
-  }
-
   SDL_GPUColorTargetInfo colorTarget{};
-  colorTarget.texture = renderTarget;
-  colorTarget.load_op = SDL_GPU_LOADOP_LOAD;
+  colorTarget.texture = gpuHandle;
+  colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
+  colorTarget.clear_color = { 0, 0, 0, 0 };
   colorTarget.store_op = SDL_GPU_STOREOP_STORE;
 
-  // TODO: depth testing here?
   renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1, nullptr);
   SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
 }
@@ -265,7 +252,8 @@ void GPUShader::end() {
     commandBuffer = nullptr;
   }
 
-  renderTarget = nullptr;
+  SDL_RenderTexture(activeRenderer, bridgeTexture, nullptr, nullptr);
+
   activeRenderer = nullptr;
 }
 

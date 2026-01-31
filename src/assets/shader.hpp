@@ -46,8 +46,7 @@ public:
 
   void preload() override;
   void use(SDL_Renderer* renderer) override;
-
-  void begin(SDL_Renderer* renderer);
+  void begin(SDL_Renderer* renderer, int width, int height);
   void end();
 
   template<typename T>
@@ -92,9 +91,11 @@ private:
 
   SDL_GPUCommandBuffer* commandBuffer = nullptr;
   SDL_GPURenderPass* renderPass = nullptr;
-  SDL_GPUTexture* renderTarget = nullptr;
   SDL_GPUSampler* defaultSampler = nullptr;
+  SDL_Texture* bridgeTexture = nullptr;
+  SDL_GPUTexture* gpuHandle = nullptr;
 
+  void initBridge(SDL_Renderer *r, int width, int height);
   bool createPipeline();
   void createDefaultSampler();
 };
