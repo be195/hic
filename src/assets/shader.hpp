@@ -32,7 +32,7 @@ public:
 
     SDL_GPUPrimitiveType primitiveType = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
 
-    SDL_GPUTextureFormat colorTargetFormat = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    SDL_GPUTextureFormat colorTargetFormat = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
     SDL_GPUTextureFormat depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
 
     uint32_t vertexUniformBuffers = 0;
@@ -107,6 +107,7 @@ namespace ShaderPresets {
       {0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0},
       {1, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, 12}
     };
+
     cfg.vertexBuffers = {
       {0, 20, SDL_GPU_VERTEXINPUTRATE_VERTEX, 0}
     };
@@ -114,6 +115,21 @@ namespace ShaderPresets {
     cfg.blendEnable = true;
     cfg.srcColorBlend = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
     cfg.dstColorBlend = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    cfg.colorBlendOp = SDL_GPU_BLENDOP_ADD;
+    cfg.srcAlphaBlend = SDL_GPU_BLENDFACTOR_ONE;
+    cfg.dstAlphaBlend = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    cfg.alphaBlendOp = SDL_GPU_BLENDOP_ADD;
+
+    cfg.depthTestEnable = false;
+    cfg.depthWriteEnable = false;
+
+    cfg.fillMode = SDL_GPU_FILLMODE_FILL;
+    cfg.cullMode = SDL_GPU_CULLMODE_NONE;
+    cfg.frontFace = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
+    cfg.primitiveType = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+
+    cfg.colorTargetFormat = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
+    cfg.depthStencilFormat = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
 
     cfg.vertexUniformBuffers = 1;
     cfg.fragmentUniformBuffers = 1;

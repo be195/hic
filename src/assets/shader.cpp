@@ -129,6 +129,8 @@ bool GPUShader::createPipeline() {
   SDL_GPUDepthStencilState depthStencil{};
   depthStencil.enable_depth_test = config.depthTestEnable;
   depthStencil.enable_depth_write = config.depthWriteEnable;
+  depthStencil.compare_op = SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
+  depthStencil.enable_stencil_test = false;
   pipelineInfo.depth_stencil_state = depthStencil;
 
   SDL_GPUColorTargetBlendState blendState{};
@@ -156,6 +158,15 @@ bool GPUShader::createPipeline() {
   SDL_GPUGraphicsPipelineTargetInfo targetInfo{};
   targetInfo.color_target_descriptions = &colorTargetDesc;
   targetInfo.num_color_targets = 1;
+
+  if (config.depthTestEnable) {
+    targetInfo.has_depth_stencil_target = true;
+    targetInfo.depth_stencil_format = config.depthStencilFormat;
+  } else {
+    targetInfo.has_depth_stencil_target = false;
+    targetInfo.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_INVALID;
+  }
+
   pipelineInfo.target_info = targetInfo;
 
   pipeline = SDL_CreateGPUGraphicsPipeline(device, &pipelineInfo);
