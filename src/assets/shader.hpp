@@ -3,47 +3,133 @@
 #include "base.hpp"
 #include "../utils/hicapi.hpp"
 #include <SDL3/SDL.h>
-#include "../utils/logging.hpp"
+#include <unordered_map>
+#include <string>
 
 namespace hic::Assets {
 
-class HIC_API Shader : public Base {
+class HIC_API GPUShader : public Base {
 public:
-  std::string fileName;
+  struct Config {
+    std::vector<SDL_GPUVertexBufferDescription> vertexBuffers;
+    std::vector<SDL_GPUVertexAttribute> vertexAttributes;
 
-  explicit Shader(std::string fileName) : fileName(std::move(fileName)) {}
-  ~Shader() override;
+    SDL_GPUFillMode fillMode = SDL_GPU_FILLMODE_FILL;
+    SDL_GPUCullMode cullMode = SDL_GPU_CULLMODE_NONE;
+    SDL_GPUFrontFace frontFace = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
+
+    bool blendEnable = true;
+    SDL_GPUBlendFactor srcColorBlend = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    SDL_GPUBlendFactor dstColorBlend = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+
+    bool depthTestEnable = false;
+    bool depthWriteEnable = false;
+
+    SDL_GPUPrimitiveType primitiveType = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+
+    uint32_t vertexUniformBuffers = 0;
+    uint32_t fragmentUniformBuffers = 0;
+    uint32_t vertexSamplers = 0;
+    uint32_t fragmentSamplers = 0;
+  };
+
+  GPUShader(std::string vertexFile, std::string fragmentFile, Config config);
+  ~GPUShader() override;
 
   void preload() override;
   void use(SDL_Renderer* renderer) override;
-  void push(SDL_Renderer* renderer) const;
-  static void pop(SDL_Renderer* renderer);
 
-  template<typename Options>
-  void pusho(SDL_Renderer* renderer, const Options& options) const {
-    if (sizeof(Options) % 16 != 0) {
-      HICL("Shader").error("push Options struct must be 16-byte aligned");
-      return;
-    }
+  void begin(SDL_Renderer* renderer);
+  void end();
 
-    if (renderState) {
-      SDL_SetGPURenderState(renderer, renderState);
+  template<typename T>
+  void setVertexUniform(const uint32_t slot, const T& data) {
+    if (commandBuffer)
+      SDL_PushGPUVertexUniformData(commandBuffer, slot, &data, sizeof(T));
+  }
 
-      if (SDL_GPUCommandBuffer* cmdBuf = SDL_AcquireGPUCommandBuffer(device); cmdBuf) {
-        SDL_PushGPUFragmentUniformData(cmdBuf, 0, &options, sizeof(options));
-        SDL_SubmitGPUCommandBuffer(cmdBuf);
-      }
-    }
-  };
+  template<typename T>
+  void setFragmentUniform(const uint32_t slot, const T& data) {
+    if (commandBuffer)
+      SDL_PushGPUFragmentUniformData(commandBuffer, slot, &data, sizeof(T));
+  }
 
-  std::string getCacheKey() const override { return "sh#" + fileName; }
+  void bindFragmentTexture(uint32_t slot, SDL_GPUTexture* texture) const;
+  void bindVertexTexture(uint32_t slot, SDL_GPUTexture* texture) const;
+
+  void draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t firstVertex = 0) const;
+  void drawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t firstIndex = 0) const;
+
+  void bindVertexBuffer(SDL_GPUBuffer* buffer, uint32_t slot = 0, uint32_t offset = 0) const;
+  void bindIndexBuffer(SDL_GPUBuffer* buffer, SDL_GPUIndexElementSize elementSize = SDL_GPU_INDEXELEMENTSIZE_16BIT) const;
+
+  std::string getCacheKey() const override {
+    return "sh#" + vertexFileName + "#" + fragmentFileName;
+  }
+
 private:
-  SDL_GPURenderState* renderState = nullptr;
-  SDL_GPUDevice* device = nullptr;
+  std::string vertexFileName;
+  std::string fragmentFileName;
+  Config config;
 
-  void* data = nullptr;
-  size_t dataSize = 0;
-  bool read = false;
+  SDL_GPUGraphicsPipeline* pipeline = nullptr;
+  SDL_GPUDevice* device = nullptr;
+  SDL_Renderer* activeRenderer = nullptr;
+
+  void* vertexData = nullptr;
+  void* fragmentData = nullptr;
+  size_t vertexDataSize = 0;
+  size_t fragmentDataSize = 0;
+  bool loaded = false;
+
+  SDL_GPUCommandBuffer* commandBuffer = nullptr;
+  SDL_GPURenderPass* renderPass = nullptr;
+  SDL_GPUTexture* renderTarget = nullptr;
+  SDL_GPUSampler* defaultSampler = nullptr;
+
+  bool createPipeline();
+  void createDefaultSampler();
 };
+
+namespace ShaderPresets {
+  inline GPUShader::Config sprite2D() {
+    GPUShader::Config cfg;
+
+    cfg.vertexAttributes = {
+      {0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0},
+      {1, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, 12}
+    };
+    cfg.vertexBuffers = {
+      {0, 20, SDL_GPU_VERTEXINPUTRATE_VERTEX, 0}
+    };
+
+    cfg.blendEnable = true;
+    cfg.srcColorBlend = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    cfg.dstColorBlend = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+
+    cfg.vertexUniformBuffers = 1;
+    cfg.fragmentUniformBuffers = 1;
+    cfg.fragmentSamplers = 1;
+
+    return cfg;
+  }
+
+  inline GPUShader::Config fullscreenQuad() {
+    GPUShader::Config cfg;
+
+    cfg.vertexAttributes = {
+      {0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, 0}
+    };
+    cfg.vertexBuffers = {
+      {0, 8, SDL_GPU_VERTEXINPUTRATE_VERTEX, 0}
+    };
+
+    cfg.blendEnable = false;
+    cfg.fragmentUniformBuffers = 1;
+    cfg.fragmentSamplers = 1;
+
+    return cfg;
+  }
+}
 
 }
