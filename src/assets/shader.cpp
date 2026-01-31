@@ -169,6 +169,18 @@ bool GPUShader::createPipeline() {
 
   pipelineInfo.target_info = targetInfo;
 
+  HICL("GPUShader").info("=== PIPELINE INFO ===");
+  HICL("GPUShader").info("vertex uniform buffers:", config.vertexUniformBuffers);
+  HICL("GPUShader").info("fragment uniform buffers:", config.fragmentUniformBuffers);
+  HICL("GPUShader").info("fragment samplers:", config.fragmentSamplers);
+  HICL("GPUShader").info("num vertex buffers:", config.vertexBuffers.size());
+  HICL("GPUShader").info("num vertex attributes:", config.vertexAttributes.size());
+  HICL("GPUShader").info("color target format:", static_cast<int>(config.colorTargetFormat));
+  HICL("GPUShader").info("blend enabled:", config.blendEnable);
+  HICL("GPUShader").info("depth test enabled:", config.depthTestEnable);
+  HICL("GPUShader").info("has depth target:", targetInfo.has_depth_stencil_target);
+  HICL("GPUShader").info("depth format:", static_cast<int>(targetInfo.depth_stencil_format));
+
   pipeline = SDL_CreateGPUGraphicsPipeline(device, &pipelineInfo);
 
   SDL_ReleaseGPUShader(device, vertShader);
