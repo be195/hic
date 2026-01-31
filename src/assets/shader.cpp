@@ -59,11 +59,29 @@ void GPUShader::use(SDL_Renderer* renderer) {
     return;
   }
 
-  const SDL_GPUTextureFormat swapchainFormat = SDL_GetGPUSwapchainTextureFormat(device, SDL_GetRenderWindow(renderer));
-  HICL("GPUShader").info("pipeline format:", std::to_string(config.colorTargetFormat), "- expected:", std::to_string(swapchainFormat));
-  config.colorTargetFormat = swapchainFormat;
+  SDL_GPUTextureFormat formatsToTry[] = {
+    SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM,
+    SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+    SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB,
+    SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB
+  };
 
-  createPipeline();
+  for (const auto format : formatsToTry) {
+    config.colorTargetFormat = format;
+    HICL("GPUShader").info("Trying format:", static_cast<int>(format));
+
+    if (createPipeline()) {
+      HICL("GPUShader").info("SUCCESS with format:", static_cast<int>(format));
+      break;
+    }
+
+    HICL("GPUShader").error("Failed with format:", static_cast<int>(format));
+    if (pipeline) {
+      SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
+      pipeline = nullptr;
+    }
+  }
+
   createDefaultSampler();
 }
 
