@@ -33,14 +33,14 @@ void GPUShader::preload() {
 
   vertexData = SDL_LoadFile(("shaders/vt_" + vertexFileName + HIC_GPUSHADER_EXT).c_str(), &vSize);
   if (!vertexData) {
-    HICL("GPUShader").error("Failed to load vertex shader:", vertexFileName);
+    HICL("GPUShader").error("failed to load vertex shader:", vertexFileName);
     return;
   }
   vertexDataSize = vSize;
 
   fragmentData = SDL_LoadFile(("shaders/fr_" + fragmentFileName + HIC_GPUSHADER_EXT).c_str(), &fSize);
   if (!fragmentData) {
-    HICL("GPUShader").error("Failed to load fragment shader:", fragmentFileName);
+    HICL("GPUShader").error("failed to load fragment shader:", fragmentFileName);
     SDL_free(vertexData);
     vertexData = nullptr;
     return;
@@ -75,7 +75,8 @@ bool GPUShader::createPipeline() {
 
   SDL_GPUShader* vertShader = SDL_CreateGPUShader(device, &vertInfo);
   if (!vertShader) {
-    HICL("GPUShader").error("Failed to create vertex shader");
+    HICL("GPUShader").error("failed to create vertex shader");
+    HICL("GPUShader").error(SDL_GetError());
     return false;
   }
 
@@ -90,7 +91,8 @@ bool GPUShader::createPipeline() {
 
   SDL_GPUShader* fragShader = SDL_CreateGPUShader(device, &fragInfo);
   if (!fragShader) {
-    HICL("GPUShader").error("Failed to create fragment shader");
+    HICL("GPUShader").error("failed to create fragment shader");
+    HICL("GPUShader").error(SDL_GetError());
     SDL_ReleaseGPUShader(device, vertShader);
     return false;
   }
