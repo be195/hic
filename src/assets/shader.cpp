@@ -60,7 +60,6 @@ void GPUShader::use(SDL_Renderer* renderer) {
     return;
   }
 
-  config.colorTargetFormat = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
   createPipeline();
   createDefaultSampler();
 }
