@@ -60,6 +60,7 @@ void GPUShader::use(SDL_Renderer* renderer) {
   }
 
   const SDL_GPUTextureFormat swapchainFormat = SDL_GetGPUSwapchainTextureFormat(device, SDL_GetRenderWindow(renderer));
+  HICL("GPUShader").info("pipeline format:", std::to_string(config.colorTargetFormat), "- expected:", std::to_string(swapchainFormat));
   config.colorTargetFormat = swapchainFormat;
 
   createPipeline();
