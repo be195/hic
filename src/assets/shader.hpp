@@ -101,7 +101,7 @@ private:
 
 namespace ShaderPresets {
   inline GPUShader::Config sprite2D() {
-    GPUShader::Config cfg;
+    GPUShader::Config cfg{};
 
     cfg.vertexAttributes = {
       {0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, 0},
@@ -123,7 +123,7 @@ namespace ShaderPresets {
   }
 
   inline GPUShader::Config fullscreenQuad() {
-    GPUShader::Config cfg;
+    GPUShader::Config cfg{};
 
     cfg.vertexAttributes = {
       {0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, 0}
