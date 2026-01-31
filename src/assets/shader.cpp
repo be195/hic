@@ -59,6 +59,9 @@ void GPUShader::use(SDL_Renderer* renderer) {
     return;
   }
 
+  const SDL_GPUTextureFormat swapchainFormat = SDL_GetGPUSwapchainTextureFormat(device, SDL_GetRenderWindow(renderer));
+  config.colorTargetFormat = swapchainFormat;
+
   createPipeline();
   createDefaultSampler();
 }
