@@ -131,6 +131,10 @@ target_link_libraries(hic PUBLIC
         nlohmann_json::nlohmann_json
 )
 
+if(WIN32)
+    add_definitions(-DWIN32)
+endif()
+
 if(HIC_BUILD_EXAMPLE)
     # example build
     add_executable(hicex WIN32 example/main.cpp)
