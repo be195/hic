@@ -32,6 +32,78 @@ GPUShader::~GPUShader() {
   if (defaultSampler) SDL_ReleaseGPUSampler(device, defaultSampler);
   if (pipeline) SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
   if (bridgeTexture) SDL_DestroyTexture(bridgeTexture);
+  if (vertexBuffer) SDL_ReleaseGPUBuffer(device, vertexBuffer);
+  if (indexBuffer) SDL_ReleaseGPUBuffer(device, indexBuffer);
+}
+
+void GPUShader::createBuffers(const std::vector<float>& vertices, const std::vector<uint16_t>& indices) {
+  if (!vertices.empty()) {
+    SDL_GPUBufferCreateInfo bufferInfo{};
+    bufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+    bufferInfo.size = vertices.size() * sizeof(float);
+
+    vertexBuffer = SDL_CreateGPUBuffer(device, &bufferInfo);
+
+    SDL_GPUTransferBufferCreateInfo transferInfo{};
+    transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+    transferInfo.size = bufferInfo.size;
+
+    SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
+    void* mapped = SDL_MapGPUTransferBuffer(device, transferBuffer, false);
+    SDL_memcpy(mapped, vertices.data(), bufferInfo.size);
+    SDL_UnmapGPUTransferBuffer(device, transferBuffer);
+
+    SDL_GPUCommandBuffer* uploadCmd = SDL_AcquireGPUCommandBuffer(device);
+    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(uploadCmd);
+
+    SDL_GPUTransferBufferLocation src{};
+    src.transfer_buffer = transferBuffer;
+    src.offset = 0;
+
+    SDL_GPUBufferRegion dst{};
+    dst.buffer = vertexBuffer;
+    dst.offset = 0;
+    dst.size = sizeof(vertexBuffer);
+
+    SDL_UploadToGPUBuffer(copyPass, &src, &dst, false);
+    SDL_EndGPUCopyPass(copyPass);
+    SDL_SubmitGPUCommandBuffer(uploadCmd);
+    SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
+  }
+
+  if (!indices.empty()) {
+    SDL_GPUBufferCreateInfo bufferInfo{};
+    bufferInfo.usage = SDL_GPU_BUFFERUSAGE_INDEX;
+    bufferInfo.size = indices.size() * sizeof(uint16_t);
+
+    indexBuffer = SDL_CreateGPUBuffer(device, &bufferInfo);
+
+    SDL_GPUTransferBufferCreateInfo transferInfo{};
+    transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+    transferInfo.size = bufferInfo.size;
+
+    SDL_GPUTransferBuffer* transferBuffer = SDL_CreateGPUTransferBuffer(device, &transferInfo);
+    void* mapped = SDL_MapGPUTransferBuffer(device, transferBuffer, false);
+    SDL_memcpy(mapped, indices.data(), bufferInfo.size);
+    SDL_UnmapGPUTransferBuffer(device, transferBuffer);
+
+    SDL_GPUCommandBuffer* uploadCmd = SDL_AcquireGPUCommandBuffer(device);
+    SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(uploadCmd);
+
+    SDL_GPUTransferBufferLocation src{};
+    src.transfer_buffer = transferBuffer;
+    src.offset = 0;
+
+    SDL_GPUBufferRegion dst{};
+    dst.buffer = indexBuffer;
+    dst.offset = 0;
+    dst.size = sizeof(indexBuffer);
+
+    SDL_UploadToGPUBuffer(copyPass, &src, &dst, false);
+    SDL_EndGPUCopyPass(copyPass);
+    SDL_SubmitGPUCommandBuffer(uploadCmd);
+    SDL_ReleaseGPUTransferBuffer(device, transferBuffer);
+  }
 }
 
 void GPUShader::preload() {
@@ -67,6 +139,7 @@ void GPUShader::use(SDL_Renderer* renderer) {
 
   createPipeline();
   createDefaultSampler();
+  createBuffers(config.vertexData, config.indexData);
 }
 
 void GPUShader::initBridge(SDL_Renderer *r, const int width, const int height) {
@@ -227,6 +300,13 @@ bool GPUShader::createPipeline() {
   vertexData = fragmentData = nullptr;
 
   return pipeline != nullptr;
+}
+
+void GPUShader::bindBuffers() const {
+  if (vertexBuffer)
+    bindVertexBuffer(vertexBuffer, 0, 0);
+  if (indexBuffer)
+    bindIndexBuffer(indexBuffer, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 }
 
 void GPUShader::createDefaultSampler() {

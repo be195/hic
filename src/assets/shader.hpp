@@ -39,6 +39,10 @@ public:
     uint32_t fragmentUniformBuffers = 0;
     uint32_t vertexSamplers = 0;
     uint32_t fragmentSamplers = 0;
+
+    std::vector<float> vertexData;
+    std::vector<uint16_t> indexData;
+    bool useIndexBuffer = false;
   };
 
   GPUShader(std::string vertexFile, std::string fragmentFile, Config config);
@@ -70,6 +74,8 @@ public:
   void bindVertexBuffer(SDL_GPUBuffer* buffer, uint32_t slot = 0, uint32_t offset = 0) const;
   void bindIndexBuffer(SDL_GPUBuffer* buffer, SDL_GPUIndexElementSize elementSize = SDL_GPU_INDEXELEMENTSIZE_16BIT) const;
 
+  void bindBuffers() const;
+
   std::string getCacheKey() const override {
     return "sh#" + vertexFileName + "#" + fragmentFileName;
   }
@@ -98,6 +104,10 @@ private:
   void initBridge(SDL_Renderer *r, int width, int height);
   bool createPipeline();
   void createDefaultSampler();
+
+  SDL_GPUBuffer* vertexBuffer = nullptr;
+  SDL_GPUBuffer* indexBuffer = nullptr;
+  void createBuffers(const std::vector<float>& vertices, const std::vector<uint16_t>& indices);
 };
 
 namespace ShaderPresets {
