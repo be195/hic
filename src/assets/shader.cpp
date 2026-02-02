@@ -66,9 +66,10 @@ void GPUShader::use(SDL_Renderer* renderer) {
 
 void GPUShader::initBridge(SDL_Renderer *r, const int width, const int height) {
   bridgeTexture = SDL_CreateTexture(r,
-                                    SDL_PIXELFORMAT_RGBA8888,
-                                    SDL_TEXTUREACCESS_TARGET,
-                                    width, height);
+    SDL_PIXELFORMAT_RGBA8888,
+    SDL_TEXTUREACCESS_TARGET,
+    width, height
+  );
 
   if (!bridgeTexture) {
     HICL("GPUShader").error("Failed to create bridge texture:", SDL_GetError());
@@ -239,6 +240,8 @@ void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height)
   if (!bridgeTexture) initBridge(renderer, width, height);
 
   activeRenderer = renderer;
+
+  if (!gpuHandle) return;
   commandBuffer = SDL_AcquireGPUCommandBuffer(device);
 
   SDL_GPUColorTargetInfo colorTarget{};
@@ -262,7 +265,8 @@ void GPUShader::end() {
     commandBuffer = nullptr;
   }
 
-  SDL_RenderTexture(activeRenderer, bridgeTexture, nullptr, nullptr);
+  if (bridgeTexture)
+    SDL_RenderTexture(activeRenderer, bridgeTexture, nullptr, nullptr);
 
   activeRenderer = nullptr;
 }
