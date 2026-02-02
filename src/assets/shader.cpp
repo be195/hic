@@ -14,6 +14,11 @@
 #define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_SPIRV
 #endif
 
+#if defined(HIC_FORCE_GPUSHADER_FORMAT) && defined(HIC_FORCE_GPUSHADER_EXT)
+#define HIC_GPUSHADER_EXT HIC_FORCE_GPUSHADER_EXT
+#define HIC_GPUSHADER_FORMAT HIC_FORCE_GPUSHADER_FORMAT
+#endif
+
 namespace hic::Assets {
 
 GPUShader::GPUShader(std::string vertexFile, std::string fragmentFile, Config config)
