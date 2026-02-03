@@ -96,7 +96,10 @@ void Container::handleEvent(const SDL_Event& e) {
       break;
 
     case SDL_EVENT_QUIT:
-      haltLoop();
+      if (ctrThread) {
+        haltLoop();
+        SDL_WaitThread(ctrThread, nullptr);
+      }
       break;
 
     default: break;
