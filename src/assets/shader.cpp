@@ -19,6 +19,8 @@
 #define HIC_GPUSHADER_FORMAT HIC_FORCE_GPUSHADER_FORMAT
 #endif
 
+#define HIC_BRIDGE_PIXEL_FORMAT SDL_PIXELFORMAT_BGRA32
+
 namespace hic::Assets {
 
 GPUShader::GPUShader(std::string vertexFile, std::string fragmentFile, Config config)
@@ -63,7 +65,7 @@ void GPUShader::createBuffers(const std::vector<float>& vertices, const std::vec
     SDL_GPUBufferRegion dst{};
     dst.buffer = vertexBuffer;
     dst.offset = 0;
-    dst.size = sizeof(vertexBuffer);
+    dst.size = bufferInfo.size;
 
     SDL_UploadToGPUBuffer(copyPass, &src, &dst, false);
     SDL_EndGPUCopyPass(copyPass);
@@ -97,7 +99,7 @@ void GPUShader::createBuffers(const std::vector<float>& vertices, const std::vec
     SDL_GPUBufferRegion dst{};
     dst.buffer = indexBuffer;
     dst.offset = 0;
-    dst.size = sizeof(indexBuffer);
+    dst.size = bufferInfo.size;
 
     SDL_UploadToGPUBuffer(copyPass, &src, &dst, false);
     SDL_EndGPUCopyPass(copyPass);
@@ -144,7 +146,7 @@ void GPUShader::use(SDL_Renderer* renderer) {
 
 void GPUShader::initBridge(SDL_Renderer *r, const int width, const int height) {
   bridgeTexture = SDL_CreateTexture(r,
-    SDL_PIXELFORMAT_RGBA8888,
+    HIC_BRIDGE_PIXEL_FORMAT,
     SDL_TEXTUREACCESS_TARGET,
     width, height
   );
@@ -154,11 +156,22 @@ void GPUShader::initBridge(SDL_Renderer *r, const int width, const int height) {
     return;
   }
 
+  SDL_SetTextureScaleMode(bridgeTexture, SDL_SCALEMODE_NEAREST);
+  SDL_SetRenderTarget(r, bridgeTexture);
+  SDL_RenderClear(r);
+  SDL_SetRenderTarget(r, nullptr);
+
+  // explicitly flush to ensure the command buffer reaches the GPU driver logic
+  SDL_FlushRenderer(r);
+
   gpuHandle = static_cast<SDL_GPUTexture *>(SDL_GetPointerProperty(
     SDL_GetTextureProperties(bridgeTexture),
-    SDL_PROP_TEXTURE_CREATE_GPU_TEXTURE_POINTER,
+    SDL_PROP_TEXTURE_GPU_TEXTURE_POINTER,
     nullptr
   ));
+
+  if (!gpuHandle)
+    HICL("GPUShader").error("Failed to cast bridge texture to GPU texture");
 }
 
 bool GPUShader::createPipeline() {
@@ -249,7 +262,7 @@ bool GPUShader::createPipeline() {
   blendState.color_write_mask = 0xF;
 
   SDL_GPUColorTargetDescription colorTargetDesc{};
-  colorTargetDesc.format = config.colorTargetFormat;
+  colorTargetDesc.format = SDL_GetGPUTextureFormatFromPixelFormat(HIC_BRIDGE_PIXEL_FORMAT);
 
   colorTargetDesc.blend_state.enable_blend = config.blendEnable;
   colorTargetDesc.blend_state.src_color_blendfactor = config.srcColorBlend;
@@ -311,9 +324,9 @@ void GPUShader::bindBuffers() const {
 
 void GPUShader::createDefaultSampler() {
   SDL_GPUSamplerCreateInfo samplerInfo{};
-  samplerInfo.min_filter = SDL_GPU_FILTER_LINEAR;
-  samplerInfo.mag_filter = SDL_GPU_FILTER_LINEAR;
-  samplerInfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_LINEAR;
+  samplerInfo.min_filter = SDL_GPU_FILTER_NEAREST;
+  samplerInfo.mag_filter = SDL_GPU_FILTER_NEAREST;
+  samplerInfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
   samplerInfo.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
   samplerInfo.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
 
