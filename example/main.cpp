@@ -57,11 +57,11 @@ class TestComponent : public hic::BaseComponent {
       SDL_RenderFillRect(r, &rect);
 
       font->renderText(r, 0, 0, "Hello, world!", SDL_Color{255,255,255,255});
-      animation->render(r, 20, 20);
+      if (animation) animation->render(r, 20, 20);
     };
 
     void update(float deltaTime, float time) override {
-      animation->update(deltaTime);
+      if (animation) animation->update(deltaTime);
     }
 
     hic::Cursor handleMouseEvent(const SDL_Event &e, float x, float y) override {

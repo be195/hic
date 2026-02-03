@@ -8,21 +8,20 @@ namespace hic {
 
 Container::Container(SDL_Window* window, SDL_Renderer* renderer) : window(window), renderer(renderer) {
   SDL_GetWindowSize(window, &width, &height);
-  assetManager = new Assets::Manager();
-  audioManager = new Audio::Manager();
+  assetManager = std::make_unique<Assets::Manager>();
+  audioManager = std::make_unique<Audio::Manager>();
 }
 
 Container::~Container() {
-  if (root)
+  if (const auto root = rootPtr.load(std::memory_order_acquire))
     root->iDestroy();
-  if (assetManager) delete assetManager;
-  if (audioManager) delete audioManager;
+  if (ctrThread)
+    SDL_WaitThread(ctrThread, nullptr);
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
 }
 
 void Container::setRoot(const std::shared_ptr<BaseComponent> &newRoot) {
-  next = newRoot;
-  loading = true;
+  nextPtr.store(newRoot, std::memory_order_release);
 }
 
 void Container::setRoot(const std::string &name) {
@@ -31,11 +30,13 @@ void Container::setRoot(const std::string &name) {
 }
 
 void Container::define(const std::string &name, const std::shared_ptr<BaseComponent> &newRoot) {
+  if (!newRoot)
+    return; // probably throw an error here
   roots.insert({name, newRoot});
 }
 
 void Container::update(const float deltaTime, const float time) const {
-  if (root)
+  if (const auto root = rootPtr.load(std::memory_order_acquire))
     root->iUpdate(deltaTime, time);
 }
 
@@ -43,7 +44,7 @@ void Container::render(const float time) const {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer);
 
-  if (root)
+  if (const auto root = rootPtr.load(std::memory_order_acquire))
     root->iRender(renderer, time);
 
   SDL_RenderPresent(renderer);
@@ -51,17 +52,18 @@ void Container::render(const float time) const {
 
 int Container::setLogicalWidth(const int newWidth) {
   lWidth = newWidth;
-  logical_res_dirty = true;
+  logicalResDirty = true;
   return newWidth;
 }
 
 int Container::setLogicalHeight(const int newHeight) {
   lHeight = newHeight;
-  logical_res_dirty = true;
+  logicalResDirty = true;
   return newHeight;
 }
 
 void Container::handleEvent(const SDL_Event& e) {
+  auto root = rootPtr.load(std::memory_order_acquire);
   if (!root) return;
 
   switch (e.type) {
@@ -99,34 +101,32 @@ void Container::handleEvent(const SDL_Event& e) {
   }
 }
 
-void Container::startLoop() {
-  if (is_in_loop) return;
+int Container::ctrThreadFunc(void *data) {
+  const auto container = static_cast<Container*>(data);
+  container->ctrThreadLoop();
+  return 0;
+}
 
-  is_in_loop = true;
-  while (is_in_loop) {
-    SDL_Event e;
-    while (SDL_PollEvent(&e))
-      handleEvent(e);
-
-    if (logical_res_dirty && lWidth != 0 && lHeight != 0) {
-      logical_res_dirty = false;
+void Container::ctrThreadLoop() {
+  while (isInLoop.load(std::memory_order_acquire)) {
+    if (logicalResDirty.exchange(false, std::memory_order_acq_rel) && lWidth != 0 && lHeight != 0)
       SDL_SetRenderLogicalPresentation(renderer, lWidth, lHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
-    }
 
-    if (next) {
-      if (root)
+    if (auto next = nextPtr.exchange(nullptr, std::memory_order_acq_rel)) {
+      if (const auto root = rootPtr.load(std::memory_order_acquire))
         root->iDestroy();
+      if (next)
+        next->iPreMount(this);
 
-      root = std::move(next);
-      if (root)
-        root->iPreMount(this);
+      rootPtr.store(next, std::memory_order_release);
+      loading.store(true, std::memory_order_release);
     }
 
     const auto nowCounter = SDL_GetPerformanceCounter();
     const double deltaTime = (nowCounter - lastCounterTime) * 1000 / static_cast<float>(SDL_GetPerformanceFrequency());
     const auto time = SDL_GetTicks();
 
-    if (loading) {
+    if (loading.load(std::memory_order_acquire)) {
       assetManager->processReady(renderer);
 
       const int pending = assetManager->getPendingCount();
@@ -137,8 +137,9 @@ void Container::startLoop() {
       renderLoadingScreen(pending, ready);
 
       if (pending == 0 && ready == 0 && !isLoading) {
-        loading = false;
-        root->iPostMount();
+        loading.store(false, std::memory_order_release);
+        if (const auto root = rootPtr.load(std::memory_order_acquire))
+          root->iPostMount();
       }
     } else {
       update(deltaTime, time);
@@ -146,11 +147,31 @@ void Container::startLoop() {
     }
 
     lastCounterTime = nowCounter;
+    SDL_Delay(1);
+  }
+}
+
+void Container::startLoop() {
+  bool expected = false;
+  if (!isInLoop.compare_exchange_strong(expected, true))
+    return;
+
+  ctrThread = SDL_CreateThread(ctrThreadFunc, "hic::Container<Container>", this);
+  if (!ctrThread) {
+    isInLoop.store(false);
+    return;
+  }
+
+  while (isInLoop.load()) {
+    SDL_Event e;
+    while (SDL_PollEvent(&e))
+      handleEvent(e);
+    SDL_Delay(1);
   }
 }
 
 void Container::haltLoop() {
-  is_in_loop = false;
+  isInLoop.store(false, std::memory_order_release);
 }
 
 void Container::updateCursor(const Cursor cursor) {

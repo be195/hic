@@ -16,10 +16,6 @@ public:
   Container(SDL_Window* window, SDL_Renderer* renderer);
   virtual ~Container();
 
-  void update(float deltaTime, float time) const;
-  void render(float time) const;
-  void handleEvent(const SDL_Event& e);
-
   void setRoot(const std::shared_ptr<BaseComponent> &newRoot);
   void setRoot(const std::string& name);
 
@@ -40,25 +36,33 @@ public:
 
   void define(const std::string& name, const std::shared_ptr<BaseComponent> &newRoot);
 
-  Assets::Manager* getAssetManager() const { return assetManager; }
-  Audio::Manager* getAudioManager() const { return audioManager; }
+  Assets::Manager* getAssetManager() const { return assetManager.get(); }
+  Audio::Manager* getAudioManager() const { return audioManager.get(); }
 private:
-  bool loading = false;
+  std::atomic<bool> loading = {false};
+
+  static int ctrThreadFunc(void* data);
+  void ctrThreadLoop();
+  SDL_Thread* ctrThread = nullptr;
+
+  void update(float deltaTime, float time) const;
+  void render(float time) const;
+  void handleEvent(const SDL_Event& e);
 
   SDL_Window* window;
   SDL_Renderer* renderer;
   std::unordered_map<std::string, std::shared_ptr<BaseComponent>> roots;
-  std::shared_ptr<BaseComponent> root;
-  std::shared_ptr<BaseComponent> next;
-  Audio::Manager* audioManager;
-  Assets::Manager* assetManager;
+  std::atomic<std::shared_ptr<BaseComponent>> rootPtr;
+  std::atomic<std::shared_ptr<BaseComponent>> nextPtr;
+  std::unique_ptr<Audio::Manager> audioManager;
+  std::unique_ptr<Assets::Manager> assetManager;
   SDL_Cursor* currentSDLCursor = nullptr;
 
   int width{}, height{}, lWidth{}, lHeight{};
   Uint64 lastCounterTime = 0;
 
-  bool is_in_loop = false;
-  bool logical_res_dirty = false;
+  std::atomic<bool> isInLoop = {false};
+  std::atomic<bool> logicalResDirty = {false};
 
   Cursor currentCursor = Cursor::DEFAULT;
   void updateCursor(Cursor cursor);
