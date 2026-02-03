@@ -13,10 +13,12 @@ Container::Container(SDL_Window* window, SDL_Renderer* renderer) : window(window
 }
 
 Container::~Container() {
+  if (ctrThread) {
+    haltLoop();
+    SDL_WaitThread(ctrThread, nullptr);
+  }
   if (const auto root = rootPtr.load(std::memory_order_acquire))
     root->iDestroy();
-  if (ctrThread)
-    SDL_WaitThread(ctrThread, nullptr);
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
 }
 
