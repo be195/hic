@@ -177,7 +177,8 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
     );
     if (!renderTarget)
       logger.error("failed to create render target texture", SDL_GetError());
-
+    else
+      SDL_SetTextureScaleMode(renderTarget, SDL_SCALEMODE_NEAREST);
     dirtyRenderTarget = false;
   }
 
