@@ -60,6 +60,8 @@ public:
   Position getAbsolutePosition() const;
   [[nodiscard]] Position getCenter() const { return boundingRect.center(); }
 
+  void markRenderTarget();
+
   bool active = true;
   bool clip = true;
   float scale = 1.0f;
@@ -82,7 +84,7 @@ protected:
   mutable bool absolutePosDirty = true;
 
   bool isLastMousePosInvalid() const;
-  Position lastMousePos;
+  Position lastMousePos = {-1, -1};
   bool mouseInside = false;
 
   void requestRender() { needsRender = true; }
@@ -91,14 +93,15 @@ private:
   uint8_t mountedStage = 0;
   bool destroyed = false;
   bool needsRender = true;
+  bool dirtyRenderTarget = false;
+  SDL_Texture* renderTarget = nullptr;
 
   void triggerMouseEnter();
   void triggerMouseLeave();
   void markAbsolutePosDirty() const;
+  bool useRenderTarget() const;
 
   Position overlappingRes = {-1, -1};
-
-  SDL_Texture* cacheTexture = nullptr;
 };
 
 } // namespace hic

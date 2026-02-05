@@ -32,6 +32,15 @@ void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
   }
 }
 
+void BaseComponent::markRenderTarget() {
+  if (!useRenderTarget()) return;
+  dirtyRenderTarget = true;
+}
+
+bool BaseComponent::useRenderTarget() const {
+  return fps >= 0 && renderTarget;
+}
+
 void BaseComponent::iPreMount(Container* cont, BaseComponent* par) {
   const bool firstMount = mountedStage == 0;
   container = cont;
@@ -42,6 +51,7 @@ void BaseComponent::iPreMount(Container* cont, BaseComponent* par) {
 
   if (firstMount) {
     boundingRect.change += [this](const char* prop, float old, float nw) {
+      this->markRenderTarget();
       this->markAbsolutePosDirty();
       this->checkMouse();
     };
@@ -61,6 +71,7 @@ void BaseComponent::iPostMount() {
     child->iPostMount();
 
   mountedStage = 2;
+  if (fps >= 0) dirtyRenderTarget = true;
   mounted();
 }
 
@@ -154,9 +165,26 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
     SDL_SetRenderClipRect(renderer, &newClipRect);
   }
 
+  if (dirtyRenderTarget) {
+    if (renderTarget) SDL_DestroyTexture(renderTarget);
+
+    renderTarget = SDL_CreateTexture(renderer,
+      SDL_PIXELFORMAT_RGBA32,
+      SDL_TEXTUREACCESS_TARGET,
+      boundingRect.w(), boundingRect.h()
+    );
+    if (!renderTarget)
+      logger.error("failed to create render target texture", SDL_GetError());
+
+    dirtyRenderTarget = false;
+  }
+
+  const auto useRenderTargetB = useRenderTarget();
   if (needsRender || fps == -1) {
     needsRender = false;
 
+    if (useRenderTargetB)
+      SDL_SetRenderTarget(renderer, renderTarget);
     render(renderer, time);
 
     for (const auto& child : children) {
@@ -176,7 +204,12 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
     }
 
     postComponentRender(renderer, time);
+    if (useRenderTargetB)
+      SDL_SetRenderTarget(renderer, nullptr);
   }
+
+  if (useRenderTargetB)
+    SDL_RenderTexture(renderer, renderTarget, nullptr, nullptr);
 
   SDL_SetRenderViewport(renderer, &viewport);
   if (clip)
@@ -189,6 +222,9 @@ void BaseComponent::iDestroy() {
 
   for (const auto& child : children)
     child->iDestroy();
+
+  if (renderTarget)
+    SDL_DestroyTexture(renderTarget);
 
   clearAnimations();
   destroy();
