@@ -101,6 +101,8 @@ private:
   static SDL_Texture* bridgeTexture;
   static SDL_GPUTexture* gpuHandle;
 
+  // TODO: bool option for instance texture and gputexture, otherwise
+  // we would have to call SDL_FlushRenderer
   static void initBridge(SDL_Renderer *r);
   bool createPipeline();
   void createDefaultSampler();
