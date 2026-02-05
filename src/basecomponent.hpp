@@ -87,13 +87,15 @@ protected:
   Position lastMousePos = {-1, -1};
   bool mouseInside = false;
 
-  void requestRender() { needsRender = true; }
+  void requestRender() {
+    needsRender.store(true, std::memory_order_release);
+  }
 
 private:
   uint8_t mountedStage = 0;
   bool destroyed = false;
-  bool needsRender = true;
-  bool dirtyRenderTarget = false;
+  std::atomic<bool> needsRender{false};
+  std::atomic<bool> dirtyRenderTarget{false};
   SDL_Texture* renderTarget = nullptr;
 
   void triggerMouseEnter();

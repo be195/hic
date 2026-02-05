@@ -34,7 +34,7 @@ void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
 
 void BaseComponent::markRenderTarget() {
   if (!useRenderTarget()) return;
-  dirtyRenderTarget = true;
+  dirtyRenderTarget.store(true, std::memory_order_release);
 }
 
 bool BaseComponent::useRenderTarget() const {
@@ -71,7 +71,8 @@ void BaseComponent::iPostMount() {
     child->iPostMount();
 
   mountedStage = 2;
-  if (fps >= 0) dirtyRenderTarget = true;
+  if (fps >= 0)
+    dirtyRenderTarget.store(true, std::memory_order_release);
   mounted();
   requestRender();
 }
@@ -166,7 +167,7 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
     SDL_SetRenderClipRect(renderer, &newClipRect);
   }
 
-  if (dirtyRenderTarget) {
+  if (dirtyRenderTarget.exchange(false, std::memory_order_acq_rel)) {
     if (renderTarget) SDL_DestroyTexture(renderTarget);
 
     renderTarget = SDL_CreateTexture(renderer,
@@ -178,14 +179,11 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
       logger.error("failed to create render target texture", SDL_GetError());
     else
       SDL_SetTextureScaleMode(renderTarget, SDL_SCALEMODE_NEAREST);
-    dirtyRenderTarget = false;
-    needsRender = true;
+    requestRender();
   }
 
   const auto useRenderTargetB = useRenderTarget();
-  if (needsRender || fps == -1) {
-    needsRender = false;
-
+  if (needsRender.exchange(false, std::memory_order_acq_rel) || fps == -1) {
     if (useRenderTargetB) {
       SDL_SetRenderTarget(renderer, renderTarget);
       SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
