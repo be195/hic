@@ -45,7 +45,7 @@ public:
     bool useIndexBuffer = false;
   };
 
-  GPUShader(std::string vertexFile, std::string fragmentFile, Config config);
+  GPUShader(std::string vertexFile, std::string fragmentFile, Config config, bool useGlobal);
   ~GPUShader() override;
 
   void preload() override;
@@ -98,12 +98,17 @@ private:
   SDL_GPUCommandBuffer* commandBuffer = nullptr;
   SDL_GPURenderPass* renderPass = nullptr;
   SDL_GPUSampler* defaultSampler = nullptr;
-  static SDL_Texture* bridgeTexture;
-  static SDL_GPUTexture* gpuHandle;
+  static SDL_Texture* bridgeTexture_;
+  static SDL_GPUTexture* gpuHandle_;
+  static bool texturesReady_;
+  SDL_Texture* bridgeTexture = nullptr;
+  SDL_GPUTexture* gpuHandle = nullptr;
+  bool useGlobalTexture = true;
+  bool texturesReady = false;
 
-  // TODO: bool option for instance texture and gputexture, otherwise
-  // we would have to call SDL_FlushRenderer
-  static void initBridge(SDL_Renderer *r);
+  static void initGlobalBridge(SDL_Renderer *r);
+  void initInstanceBridge(SDL_Renderer *r);
+  void initBridge(SDL_Renderer *r);
   bool createPipeline();
   void createDefaultSampler();
 

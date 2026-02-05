@@ -7,7 +7,7 @@
 #define HIC_GPUSHADER_EXT ".dxil"
 #define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_DXIL
 #elif defined(__APPLE__)
-#define HIC_GPUSHADER_EXIT ".metal"
+#define HIC_GPUSHADER_EXT ".metal"
 #define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_MSL
 #else
 #define HIC_GPUSHADER_EXT ".spv"
@@ -19,24 +19,32 @@
 #define HIC_GPUSHADER_FORMAT HIC_FORCE_GPUSHADER_FORMAT
 #endif
 
-#define HIC_BRIDGE_PIXEL_FORMAT SDL_PIXELFORMAT_BGRA32
+#ifndef HIC_SHADER_BRIDGE_PIXEL_FORMAT
+#define HIC_SHADER_BRIDGE_PIXEL_FORMAT SDL_PIXELFORMAT_BGRA32
+#endif
+
+#ifndef HIC_SHADER_ATLAS_SIZE
 #define HIC_SHADER_ATLAS_SIZE 512
+#endif
 
 namespace hic::Assets {
 
-GPUShader::GPUShader(std::string vertexFile, std::string fragmentFile, Config config)
+GPUShader::GPUShader(std::string vertexFile, std::string fragmentFile, Config config, bool useGlobal)
   : vertexFileName(std::move(vertexFile))
   , fragmentFileName(std::move(fragmentFile))
-  , config(std::move(config)) {}
+  , config(std::move(config))
+  , useGlobalTexture(useGlobal) {}
 
 GPUShader::~GPUShader() {
   if (vertexData) SDL_free(vertexData);
   if (fragmentData) SDL_free(fragmentData);
-  if (defaultSampler) SDL_ReleaseGPUSampler(device, defaultSampler);
-  if (pipeline) SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
   if (bridgeTexture) SDL_DestroyTexture(bridgeTexture);
-  if (vertexBuffer) SDL_ReleaseGPUBuffer(device, vertexBuffer);
-  if (indexBuffer) SDL_ReleaseGPUBuffer(device, indexBuffer);
+  if (device) {
+    if (defaultSampler) SDL_ReleaseGPUSampler(device, defaultSampler);
+    if (pipeline) SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
+    if (vertexBuffer) SDL_ReleaseGPUBuffer(device, vertexBuffer);
+    if (indexBuffer) SDL_ReleaseGPUBuffer(device, indexBuffer);
+  }
 }
 
 void GPUShader::createBuffers(const std::vector<float>& vertices, const std::vector<uint16_t>& indices) {
@@ -145,15 +153,48 @@ void GPUShader::use(SDL_Renderer* renderer) {
   createBuffers(config.vertexData, config.indexData);
 }
 
-void GPUShader::initBridge(SDL_Renderer *r) {
+void GPUShader::initGlobalBridge(SDL_Renderer *r) {
+  if (texturesReady_) return;
+  texturesReady_ = true;
+
+  bridgeTexture_ = SDL_CreateTexture(r,
+    HIC_SHADER_BRIDGE_PIXEL_FORMAT,
+    SDL_TEXTUREACCESS_TARGET,
+    HIC_SHADER_ATLAS_SIZE, HIC_SHADER_ATLAS_SIZE
+  );
+
+  if (!bridgeTexture_) {
+    HICL("static GPUShader").error("Failed to create bridge texture:", SDL_GetError());
+    return;
+  }
+
+  SDL_SetTextureScaleMode(bridgeTexture_, SDL_SCALEMODE_NEAREST);
+  SDL_SetRenderTarget(r, bridgeTexture_);
+  SDL_RenderClear(r);
+  SDL_SetRenderTarget(r, nullptr);
+
+  // explicitly flush to ensure the command buffer reaches the GPU driver logic
+  SDL_FlushRenderer(r);
+
+  gpuHandle_ = static_cast<SDL_GPUTexture *>(SDL_GetPointerProperty(
+    SDL_GetTextureProperties(bridgeTexture_),
+    SDL_PROP_TEXTURE_GPU_TEXTURE_POINTER,
+    nullptr
+  ));
+
+  if (!gpuHandle_)
+    HICL("static GPUShader").error("Failed to cast bridge texture to GPU texture");
+}
+
+void GPUShader::initInstanceBridge(SDL_Renderer *r) {
   bridgeTexture = SDL_CreateTexture(r,
-    HIC_BRIDGE_PIXEL_FORMAT,
+    HIC_SHADER_BRIDGE_PIXEL_FORMAT,
     SDL_TEXTUREACCESS_TARGET,
     HIC_SHADER_ATLAS_SIZE, HIC_SHADER_ATLAS_SIZE
   );
 
   if (!bridgeTexture) {
-    HICL("GPUShader").error("Failed to create bridge texture:", SDL_GetError());
+    HICL("static GPUShader").error("Failed to create bridge texture:", SDL_GetError());
     return;
   }
 
@@ -172,7 +213,21 @@ void GPUShader::initBridge(SDL_Renderer *r) {
   ));
 
   if (!gpuHandle)
-    HICL("GPUShader").error("Failed to cast bridge texture to GPU texture");
+    HICL("static GPUShader").error("Failed to cast bridge texture to GPU texture");
+}
+
+void GPUShader::initBridge(SDL_Renderer *r) {
+  if (texturesReady) return;
+
+  if (useGlobalTexture) {
+    if (!bridgeTexture_)
+      initGlobalBridge(r);
+    bridgeTexture = bridgeTexture_;
+    gpuHandle = gpuHandle_;
+  } else
+    initInstanceBridge(r);
+
+  texturesReady = true;
 }
 
 bool GPUShader::createPipeline() {
@@ -263,7 +318,7 @@ bool GPUShader::createPipeline() {
   blendState.color_write_mask = 0xF;
 
   SDL_GPUColorTargetDescription colorTargetDesc{};
-  colorTargetDesc.format = SDL_GetGPUTextureFormatFromPixelFormat(HIC_BRIDGE_PIXEL_FORMAT);
+  colorTargetDesc.format = SDL_GetGPUTextureFormatFromPixelFormat(HIC_SHADER_BRIDGE_PIXEL_FORMAT);
 
   colorTargetDesc.blend_state.enable_blend = config.blendEnable;
   colorTargetDesc.blend_state.src_color_blendfactor = config.srcColorBlend;
@@ -304,14 +359,14 @@ bool GPUShader::createPipeline() {
 
   SDL_ReleaseGPUShader(device, vertShader);
   SDL_ReleaseGPUShader(device, fragShader);
-  if (pipeline != nullptr) {
-    SDL_free(vertexData);
-    SDL_free(fragmentData);
-  } else {
+  SDL_free(vertexData);
+  SDL_free(fragmentData);
+  vertexData = fragmentData = nullptr;
+
+  if (!pipeline) {
     HICL("GPUShader").error("failed to create graphics pipeline");
     HICL("GPUShader").error(SDL_GetError());
   }
-  vertexData = fragmentData = nullptr;
 
   return pipeline != nullptr;
 }
@@ -323,8 +378,9 @@ void GPUShader::bindBuffers() const {
     bindIndexBuffer(indexBuffer, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 }
 
-SDL_GPUTexture* GPUShader::gpuHandle = nullptr;
-SDL_Texture* GPUShader::bridgeTexture = nullptr;
+SDL_GPUTexture* GPUShader::gpuHandle_ = nullptr;
+SDL_Texture* GPUShader::bridgeTexture_ = nullptr;
+bool GPUShader::texturesReady_ = false;
 
 void GPUShader::createDefaultSampler() {
   SDL_GPUSamplerCreateInfo samplerInfo{};
