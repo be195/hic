@@ -98,10 +98,10 @@ private:
   SDL_GPUCommandBuffer* commandBuffer = nullptr;
   SDL_GPURenderPass* renderPass = nullptr;
   SDL_GPUSampler* defaultSampler = nullptr;
-  SDL_Texture* bridgeTexture = nullptr;
-  SDL_GPUTexture* gpuHandle = nullptr;
+  static SDL_Texture* bridgeTexture;
+  static SDL_GPUTexture* gpuHandle;
 
-  void initBridge(SDL_Renderer *r, int width, int height);
+  static void initBridge(SDL_Renderer *r);
   bool createPipeline();
   void createDefaultSampler();
 

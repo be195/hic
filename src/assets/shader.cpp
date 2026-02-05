@@ -20,6 +20,7 @@
 #endif
 
 #define HIC_BRIDGE_PIXEL_FORMAT SDL_PIXELFORMAT_BGRA32
+#define HIC_SHADER_ATLAS_SIZE 512
 
 namespace hic::Assets {
 
@@ -144,11 +145,11 @@ void GPUShader::use(SDL_Renderer* renderer) {
   createBuffers(config.vertexData, config.indexData);
 }
 
-void GPUShader::initBridge(SDL_Renderer *r, const int width, const int height) {
+void GPUShader::initBridge(SDL_Renderer *r) {
   bridgeTexture = SDL_CreateTexture(r,
     HIC_BRIDGE_PIXEL_FORMAT,
     SDL_TEXTUREACCESS_TARGET,
-    width, height
+    HIC_SHADER_ATLAS_SIZE, HIC_SHADER_ATLAS_SIZE
   );
 
   if (!bridgeTexture) {
@@ -322,6 +323,9 @@ void GPUShader::bindBuffers() const {
     bindIndexBuffer(indexBuffer, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 }
 
+SDL_GPUTexture* GPUShader::gpuHandle = nullptr;
+SDL_Texture* GPUShader::bridgeTexture = nullptr;
+
 void GPUShader::createDefaultSampler() {
   SDL_GPUSamplerCreateInfo samplerInfo{};
   samplerInfo.min_filter = SDL_GPU_FILTER_NEAREST;
@@ -335,7 +339,7 @@ void GPUShader::createDefaultSampler() {
 
 void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height) {
   if (!pipeline) return;
-  if (!bridgeTexture) initBridge(renderer, width, height);
+  if (!bridgeTexture) initBridge(renderer);
 
   activeRenderer = renderer;
 
