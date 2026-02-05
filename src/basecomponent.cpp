@@ -35,7 +35,6 @@ void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
 void BaseComponent::markRenderTarget() {
   if (!useRenderTarget()) return;
   dirtyRenderTarget = true;
-  requestRender();
 }
 
 bool BaseComponent::useRenderTarget() const {
@@ -180,14 +179,19 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
     else
       SDL_SetTextureScaleMode(renderTarget, SDL_SCALEMODE_NEAREST);
     dirtyRenderTarget = false;
+    needsRender = true;
   }
 
   const auto useRenderTargetB = useRenderTarget();
   if (needsRender || fps == -1) {
     needsRender = false;
 
-    if (useRenderTargetB)
+    if (useRenderTargetB) {
       SDL_SetRenderTarget(renderer, renderTarget);
+      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+      SDL_RenderClear(renderer);
+      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    }
     render(renderer, time);
 
     for (const auto& child : children) {
