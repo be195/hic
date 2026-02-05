@@ -35,6 +35,7 @@ void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
 void BaseComponent::markRenderTarget() {
   if (!useRenderTarget()) return;
   dirtyRenderTarget = true;
+  requestRender();
 }
 
 bool BaseComponent::useRenderTarget() const {
@@ -73,6 +74,7 @@ void BaseComponent::iPostMount() {
   mountedStage = 2;
   if (fps >= 0) dirtyRenderTarget = true;
   mounted();
+  requestRender();
 }
 
 void BaseComponent::iUpdate(float deltaTime, const float time) {
