@@ -211,8 +211,10 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
     }
 
     postComponentRender(renderer, time);
-    if (useRenderTargetB)
+    if (useRenderTargetB) {
       SDL_SetRenderTarget(renderer, nullptr);
+      SDL_FlushRenderer(renderer); // *gulp*
+    }
   }
 
   if (useRenderTargetB)
