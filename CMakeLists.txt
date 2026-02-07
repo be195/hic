@@ -4,6 +4,7 @@ project(hic VERSION 1.0.0)
 include(cmake/CPM.cmake)
 
 option(HIC_BUILD_SHARED "Build hic as a shared library" OFF)
+option(HIC_USE_IMGUI "Use ImGui" OFF)
 option(HIC_BUILD_EXAMPLE "Build examples" OFF)
 set(HIC_LIB_TYPE STATIC)
 if(HIC_BUILD_SHARED)
@@ -130,6 +131,39 @@ target_link_libraries(hic PUBLIC
         ogg
         nlohmann_json::nlohmann_json
 )
+
+if(HIC_USE_IMGUI)
+    CPMAddPackage(
+            NAME _imgui
+            GITHUB_REPOSITORY ocornut/imgui
+            GIT_TAG v1.92.5
+    )
+
+    add_library(imgui STATIC
+            ${_imgui_SOURCE_DIR}/imgui.cpp
+            ${_imgui_SOURCE_DIR}/imgui_demo.cpp
+            ${_imgui_SOURCE_DIR}/imgui_draw.cpp
+            ${_imgui_SOURCE_DIR}/imgui_tables.cpp
+            ${_imgui_SOURCE_DIR}/imgui_widgets.cpp
+            ${_imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
+            ${_imgui_SOURCE_DIR}/backends/imgui_impl_sdlgpu3.cpp
+            ${_imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer3.cpp
+    )
+    target_sources(imgui PUBLIC
+            $<BUILD_INTERFACE:${_imgui_SOURCE_DIR}>
+    )
+    target_include_directories(imgui
+            PUBLIC
+            $<BUILD_INTERFACE:${_imgui_SOURCE_DIR}>
+            $<BUILD_INTERFACE:${_imgui_SOURCE_DIR}/backends>
+            PRIVATE ${_imgui_SOURCE_DIR}
+    )
+    target_link_libraries(imgui PRIVATE SDL3::SDL3)
+    target_compile_definitions(imgui INTERFACE IMGUI_DISABLE_INCLUDE_IMCONFIG_H)
+
+    target_link_libraries(hic PUBLIC imgui)
+    target_compile_definitions(hic PUBLIC HIC_USE_IMGUI)
+endif()
 
 if(WIN32)
     add_definitions(-DWIN32)

@@ -9,12 +9,21 @@
 #include "audio/manager.hpp"
 #include "utils/hicapi.hpp"
 
+#ifdef HIC_USE_IMGUI
+#include <imgui.h>
+#endif
+
 namespace hic {
 
 class HIC_API Container {
 public:
   Container(SDL_Window* window, SDL_Renderer* renderer);
   virtual ~Container();
+
+#ifdef HIC_USE_IMGUI
+  ImGuiIO* imguiIo;
+  ImGuiContext* imguiContext;
+#endif
 
   void setRoot(const std::shared_ptr<BaseComponent> &newRoot);
   void setRoot(const std::string& name);

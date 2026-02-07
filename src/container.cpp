@@ -4,12 +4,27 @@
 
 #include <utility>
 
+#ifdef HIC_USE_IMGUI
+#include <imgui.h>
+#include <backends/imgui_impl_sdl3.h>
+#include <backends/imgui_impl_sdlrenderer3.h>
+#endif
+
 namespace hic {
 
 Container::Container(SDL_Window* window, SDL_Renderer* renderer) : window(window), renderer(renderer) {
   SDL_GetWindowSize(window, &width, &height);
   assetManager = std::make_unique<Assets::Manager>();
   audioManager = std::make_unique<Audio::Manager>();
+#ifdef HIC_USE_IMGUI
+  HICL("Container").debug("initializing ImGui, to turn off use HIC_USE_IMGUI option");
+  IMGUI_CHECKVERSION();
+  imguiContext = ImGui::CreateContext();
+  imguiIo = &ImGui::GetIO();
+
+  imguiIo->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  imguiIo->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+#endif
 }
 
 Container::~Container() {
@@ -17,6 +32,12 @@ Container::~Container() {
     haltLoop();
     SDL_WaitThread(ctrThread, nullptr);
   }
+
+#ifdef HIC_USE_IMGUI
+  ImGui::DestroyContext(imguiContext);
+  free(imguiIo);
+#endif
+
   if (const auto root = rootPtr.load(std::memory_order_acquire))
     root->iDestroy();
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
@@ -43,13 +64,8 @@ void Container::update(const float deltaTime, const float time) const {
 }
 
 void Container::render(const float time) const {
-  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-  SDL_RenderClear(renderer);
-
   if (const auto root = rootPtr.load(std::memory_order_acquire))
     root->iRender(renderer, time);
-
-  SDL_RenderPresent(renderer);
 }
 
 int Container::setLogicalWidth(const int newWidth) {
@@ -65,6 +81,10 @@ int Container::setLogicalHeight(const int newHeight) {
 }
 
 void Container::handleEvent(const SDL_Event& e) {
+#ifdef HIC_USE_IMGUI
+  ImGui_ImplSDL3_ProcessEvent(&e);
+#endif
+
   auto root = rootPtr.load(std::memory_order_acquire);
   if (!root) return;
 
@@ -114,6 +134,13 @@ int Container::ctrThreadFunc(void *data) {
 
 void Container::ctrThreadLoop() {
   while (isInLoop.load(std::memory_order_acquire)) {
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+#ifdef HIC_USE_IMGUI
+    ImGui_ImplSDLRenderer3_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+#endif
     if (logicalResDirty.exchange(false, std::memory_order_acq_rel) && lWidth != 0 && lHeight != 0)
       SDL_SetRenderLogicalPresentation(renderer, lWidth, lHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
 
@@ -153,6 +180,19 @@ void Container::ctrThreadLoop() {
 
     lastCounterTime = nowCounter;
     SDL_Delay(1);
+
+#ifdef HIC_USE_IMGUI
+    ImGui::Render();
+
+    int w, h;
+    SDL_GetWindowSize(window, &w, &h);
+
+    // FUCK!
+    SDL_SetRenderLogicalPresentation(renderer, w, h, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
+    ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
+    SDL_SetRenderLogicalPresentation(renderer, lWidth, lHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
+#endif
+    SDL_RenderPresent(renderer);
   }
 }
 

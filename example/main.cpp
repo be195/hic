@@ -5,6 +5,9 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_sdlrenderer3.h"
+
 class TestComponent2 : public hic::BaseComponent {
 public:
   void mounted() override {
@@ -30,6 +33,8 @@ public:
 };
 
 class TestComponent : public hic::BaseComponent {
+  bool show = true;
+
   public:
     std::shared_ptr<hic::Assets::BitmapFont> font;
     std::shared_ptr<hic::Assets::Spritesheet> spritesheet;
@@ -43,21 +48,16 @@ class TestComponent : public hic::BaseComponent {
 
     void mounted() override {
       animation = spritesheet->animation("explosion");
-      this->boundingRect.setW(200);
-      this->boundingRect.setH(200);
+      this->boundingRect.setW(1280);
+      this->boundingRect.setH(720);
 
       const std::shared_ptr<BaseComponent> a = std::make_shared<TestComponent2>();
       this->addChild(a);
     };
 
     void render(SDL_Renderer *r, float time) override {
-      SDL_SetRenderDrawColor(r, 255, 0, 0, 255);
-
-      const SDL_FRect rect = { 0, 0, this->boundingRect.w(), this->boundingRect.h() };
-      SDL_RenderFillRect(r, &rect);
-
-      font->renderText(r, 0, 0, "Hello, world!", SDL_Color{255,255,255,255});
-      if (animation) animation->render(r, 20, 20);
+      if (show)
+        ImGui::ShowDemoWindow(&show);
     };
 
     void update(float deltaTime, float time) override {
@@ -92,6 +92,12 @@ int main(const int argc, char* argv[]) {
   test.get()->clip = false;
 
   const auto container = new hic::Container(window, renderer);
+
+  ImGui::SetCurrentContext(container->imguiContext);
+  ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
+  ImGui_ImplSDLRenderer3_Init(renderer);
+  ImGui::StyleColorsDark();
+
   container->setLogicalWidth(320);
   container->setLogicalHeight(180);
   container->setRoot(test);
