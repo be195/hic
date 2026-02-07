@@ -9,6 +9,10 @@ namespace hic::Assets {
 class HIC_API BitmapFont : public Base {
 public:
   std::string folderName;
+  bool ok = false;
+  std::unique_ptr<BMFont> font;
+  std::unordered_map<std::string, SDL_Surface*> surfaces;
+  std::unordered_map<std::string, SDL_Texture*> textures;
 
   explicit BitmapFont(std::string folderName);
   ~BitmapFont() override;
@@ -26,10 +30,6 @@ public:
 
   std::string getCacheKey() const override { return "bmf#" + folderName; }
 private:
-  bool ok = false;
-  std::unique_ptr<BMFont> font;
-  std::unordered_map<std::string, SDL_Surface*> surfaces;
-  std::unordered_map<std::string, SDL_Texture*> textures;
   SDL_Mutex* mutex;
 
   void cleanup();
