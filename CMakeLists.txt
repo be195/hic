@@ -145,6 +145,7 @@ if(HIC_USE_IMGUI)
             ${_imgui_SOURCE_DIR}/imgui_draw.cpp
             ${_imgui_SOURCE_DIR}/imgui_tables.cpp
             ${_imgui_SOURCE_DIR}/imgui_widgets.cpp
+            ${_imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
             ${_imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
             ${_imgui_SOURCE_DIR}/backends/imgui_impl_sdlgpu3.cpp
             ${_imgui_SOURCE_DIR}/backends/imgui_impl_sdlrenderer3.cpp
