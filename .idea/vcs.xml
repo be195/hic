@@ -2,6 +2,10 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build/_deps/nlohmann_json-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build/_deps/ogg-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build/_deps/opus-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/build/_deps/opusfile-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/build/_deps/sdl3-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/cmake-build-debug-visual-studio/_deps/_imgui-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/cmake-build-debug-visual-studio/_deps/ogg-src" vcs="Git" />

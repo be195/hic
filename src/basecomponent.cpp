@@ -147,15 +147,15 @@ Position* BaseComponent::amIOverlappingWithMouse(const BaseComponent* component)
 void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
   if (!active) return;
 
-  SDL_Rect viewport;
+  SDL_Rect viewport = { 0, 0, 0, 0 };
   SDL_Rect* clipRect = nullptr;
   SDL_GetRenderViewport(renderer, &viewport);
 
   if (clip)
     SDL_GetRenderClipRect(renderer, clipRect);
 
-  const int x = static_cast<int>(boundingRect.x());
-  const int y = static_cast<int>(boundingRect.y());
+  const int x = static_cast<int>(boundingRect.x()) + viewport.x;
+  const int y = static_cast<int>(boundingRect.y()) + viewport.y;
   const int w = static_cast<int>(boundingRect.w());
   const int h = static_cast<int>(boundingRect.h());
 

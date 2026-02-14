@@ -23,10 +23,6 @@ public:
     SDL_RenderFillRect(r, &rect);
   };
 
-  void update(float deltaTime, float time) override {
-    this->boundingRect.setX(100 + sin(time / 2000 * M_PI) * 20);
-  };
-
   hic::Cursor handleMouseEvent(const SDL_Event &e, float x, float y) override {
     return hic::Cursor::WAIT;
   };
@@ -48,21 +44,23 @@ class TestComponent : public hic::BaseComponent {
 
     void mounted() override {
       animation = spritesheet->animation("explosion");
-      this->boundingRect.setW(1280);
-      this->boundingRect.setH(720);
+      boundingRect.setW(1280);
+      boundingRect.setH(720);
 
       const std::shared_ptr<BaseComponent> a = std::make_shared<TestComponent2>();
-      this->addChild(a);
-    };
-
-    void render(SDL_Renderer *r, float time) override {
-      if (show)
-        ImGui::ShowDemoWindow(&show);
+      addChild(a);
     };
 
     void update(float deltaTime, float time) override {
-      if (animation) animation->update(deltaTime);
-    }
+      this->boundingRect.setX(100 + sin(time / 2000 * M_PI) * 20);
+    };
+
+    void render(SDL_Renderer *r, float time) override {
+      SDL_SetRenderDrawColor(r, 255, 0, 0, 255);
+
+      const SDL_FRect rect = { 0, 0, this->boundingRect.w(), this->boundingRect.h() };
+      SDL_RenderFillRect(r, &rect);
+    };
 
     hic::Cursor handleMouseEvent(const SDL_Event &e, float x, float y) override {
       return hic::Cursor::INHERIT;

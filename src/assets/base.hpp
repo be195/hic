@@ -16,6 +16,8 @@ struct HIC_API Base {
   virtual void use(SDL_Renderer* renderer) {}
 
   virtual std::string getCacheKey() const { return ""; }
+
+  virtual void tick() {}
 };
 
 static SDL_Surface* createPlaceholderSurface();
