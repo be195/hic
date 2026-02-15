@@ -49,7 +49,7 @@ public:
   void iPreMount(Container* cont, BaseComponent* par = nullptr);
   void iPostMount();
   void iUpdate(float deltaTime, float time);
-  void iRender(SDL_Renderer* renderer, float time);
+  void iRender(SDL_Renderer* renderer, float time, Position absPos, BaseComponent* lastClipParent, Position lastClipAbsPos);
   void iDestroy();
 
   Cursor iHandleMouseEvent(const SDL_Event& e, float x, float y);

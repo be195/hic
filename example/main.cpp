@@ -8,12 +8,39 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
 
+class TestComponent3 : public hic::BaseComponent {
+public:
+  void mounted() override {
+    this->boundingRect.setW(15);
+    this->boundingRect.setH(15);
+    this->boundingRect.setY(5);
+  };
+
+  void render(SDL_Renderer *r, float time) override {
+    SDL_SetRenderDrawColor(r, 0, 0, 255, 255);
+
+    const SDL_FRect rect = { 0, 0, this->boundingRect.w(), this->boundingRect.h() };
+    SDL_RenderFillRect(r, &rect);
+  };
+
+  void update(float deltaTime, float time) override {
+    this->boundingRect.setX(0 + sin(time / 2000 * M_PI) * 8);
+  };
+
+  hic::Cursor handleMouseEvent(const SDL_Event &e, float x, float y) override {
+    return hic::Cursor::WAIT;
+  };
+};
+
 class TestComponent2 : public hic::BaseComponent {
 public:
   void mounted() override {
     this->boundingRect.setW(40);
     this->boundingRect.setH(40);
     this->boundingRect.setY(70);
+
+    const std::shared_ptr<BaseComponent> a = std::make_shared<TestComponent3>();
+    addChild(a);
   };
 
   void render(SDL_Renderer *r, float time) override {
@@ -21,6 +48,10 @@ public:
 
     const SDL_FRect rect = { 0, 0, this->boundingRect.w(), this->boundingRect.h() };
     SDL_RenderFillRect(r, &rect);
+  };
+
+  void update(float deltaTime, float time) override {
+    this->boundingRect.setX(20 + cos(time / 2000 * M_PI) * 20);
   };
 
   hic::Cursor handleMouseEvent(const SDL_Event &e, float x, float y) override {
@@ -44,15 +75,15 @@ class TestComponent : public hic::BaseComponent {
 
     void mounted() override {
       animation = spritesheet->animation("explosion");
-      boundingRect.setW(1280);
-      boundingRect.setH(720);
+      boundingRect.setW(100);
+      boundingRect.setH(100);
 
       const std::shared_ptr<BaseComponent> a = std::make_shared<TestComponent2>();
       addChild(a);
     };
 
     void update(float deltaTime, float time) override {
-      this->boundingRect.setX(100 + sin(time / 2000 * M_PI) * 20);
+      boundingRect.setX(40 + sin(time / 2000 * M_PI) * 20);
     };
 
     void render(SDL_Renderer *r, float time) override {
@@ -87,8 +118,6 @@ int main(const int argc, char* argv[]) {
   }
 
   const auto test = std::make_shared<TestComponent>();
-  test.get()->clip = false;
-
   const auto container = new hic::Container(window, renderer);
 
   ImGui::SetCurrentContext(container->imguiContext);

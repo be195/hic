@@ -144,27 +144,40 @@ Position* BaseComponent::amIOverlappingWithMouse(const BaseComponent* component)
   return nullptr;
 }
 
-void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
+void BaseComponent::iRender(SDL_Renderer* renderer, const float time, const Position absPos, BaseComponent* lastClipParent, const Position lastClipAbsPos) {
   if (!active) return;
 
   SDL_Rect viewport = { 0, 0, 0, 0 };
-  SDL_Rect* clipRect = nullptr;
+  SDL_Rect parentClip;
   SDL_GetRenderViewport(renderer, &viewport);
 
   if (clip)
-    SDL_GetRenderClipRect(renderer, clipRect);
+    SDL_GetRenderClipRect(renderer, &parentClip);
 
-  const int x = static_cast<int>(boundingRect.x()) + viewport.x;
-  const int y = static_cast<int>(boundingRect.y()) + viewport.y;
+  const int x = static_cast<int>(absPos.x);
+  const int y = static_cast<int>(absPos.y);
   const int w = static_cast<int>(boundingRect.w());
   const int h = static_cast<int>(boundingRect.h());
 
   const SDL_Rect newViewport = {x, y, w, h};
   SDL_SetRenderViewport(renderer, &newViewport);
 
+  SDL_Rect currentClipRect = {0, 0, w, h};
+
   if (clip) {
-    const SDL_Rect newClipRect = {0, 0, w, h};
-    SDL_SetRenderClipRect(renderer, &newClipRect);
+    if (lastClipParent) {
+      const int offsetX = static_cast<int>(absPos.x - lastClipAbsPos.x);
+      const int offsetY = static_cast<int>(absPos.y - lastClipAbsPos.y);
+
+      SDL_Rect parentClipLocal = parentClip;
+      parentClipLocal.x -= offsetX;
+      parentClipLocal.y -= offsetY;
+
+      const SDL_Rect componentBounds = {0, 0, w, h};
+      if (!SDL_GetRectIntersection(&componentBounds, &parentClipLocal, &currentClipRect))
+        currentClipRect = {0, 0, 0, 0};
+    }
+    SDL_SetRenderClipRect(renderer, &currentClipRect);
   }
 
   if (dirtyRenderTarget.exchange(false, std::memory_order_acq_rel)) {
@@ -184,6 +197,7 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
 
   const auto useRenderTargetB = useRenderTarget();
   if (needsRender.exchange(false, std::memory_order_acq_rel) || fps == -1) {
+    SDL_Texture* previousTarget = SDL_GetRenderTarget(renderer);
     if (useRenderTargetB) {
       SDL_SetRenderTarget(renderer, renderTarget);
       SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
@@ -196,11 +210,20 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
       try {
         // ReSharper disable once CppTooWideScopeInitStatement
         Rectangle c = child->boundingRect;
-        if (!clip ||
-          (c.x() + c.w() >= 0 &&
-          c.y() + c.h() >= 0 &&
-          c.x() < w && c.y() < h)) {
-          child->iRender(renderer, time);
+        SDL_Rect childRect = {
+          static_cast<int>(c.x()),
+          static_cast<int>(c.y()),
+          static_cast<int>(c.w()),
+          static_cast<int>(c.h())
+        };
+
+        if (!clip || SDL_HasRectIntersection(&childRect, &currentClipRect)) {
+          // TODO: absPos could be stored and shared for O(1) access instead of being calculated for each child (see getAbsolutePosition)
+          const Position childAbsPos = { absPos.x + c.x(), absPos.y + c.y() };
+          if (clip)
+            child->iRender(renderer, time, childAbsPos, this, absPos);
+          else
+            child->iRender(renderer, time, childAbsPos, lastClipParent, lastClipAbsPos);
         }
       } catch (const std::exception& e) {
         logger.error("Child threw a render error: ", e.what());
@@ -210,7 +233,7 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
 
     postComponentRender(renderer, time);
     if (useRenderTargetB)
-      SDL_SetRenderTarget(renderer, nullptr);
+      SDL_SetRenderTarget(renderer, previousTarget);
   }
 
   if (useRenderTargetB)
@@ -218,7 +241,7 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time) {
 
   SDL_SetRenderViewport(renderer, &viewport);
   if (clip)
-    SDL_SetRenderClipRect(renderer, clipRect);
+    SDL_SetRenderClipRect(renderer, &parentClip);
 }
 
 void BaseComponent::iDestroy() {

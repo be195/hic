@@ -65,7 +65,7 @@ void Container::update(const float deltaTime, const float time) const {
 
 void Container::render(const float time) const {
   if (const auto root = rootPtr.load(std::memory_order_acquire))
-    root->iRender(renderer, time);
+    root->iRender(renderer, time, root->boundingRect.pos(), nullptr, {0, 0});
 }
 
 int Container::setLogicalWidth(const int newWidth) {
