@@ -3,6 +3,7 @@
 #include <ranges>
 #include "../utils/logging.hpp"
 #include "../utils/util.hpp"
+#include "../utils/utf8.hpp"
 #include "base.hpp"
 
 namespace hic::Assets {
@@ -140,7 +141,8 @@ float BitmapFont::measureText(const std::string& text, const float scale) const 
   float width = 0;
   uint32_t prevChar = 0;
 
-  for (const auto c : text) {
+  const auto codepoints = UTF8::to_codepoints(text);
+  for (const auto c : codepoints) {
     if (c == '\n') {
       prevChar = 0;
       widths.push_back(width);
@@ -148,8 +150,7 @@ float BitmapFont::measureText(const std::string& text, const float scale) const 
       continue;
     }
 
-    uint32_t charCode = c;
-    auto charIt = font->chars.find(charCode);
+    auto charIt = font->chars.find(c);
     if (charIt == font->chars.end()) {
       prevChar = 0;
       continue;
@@ -158,10 +159,10 @@ float BitmapFont::measureText(const std::string& text, const float scale) const 
     const auto& ch = charIt->second;
 
     if (prevChar != 0)
-      width += getKerning(prevChar, charCode) * scale;
+      width += getKerning(prevChar, c) * scale;
 
     width += ch.xAdvance * scale;
-    prevChar = charCode;
+    prevChar = c;
   }
   widths.push_back(width);
 
@@ -181,8 +182,9 @@ void BitmapFont::renderText(SDL_Renderer* renderer, const float x, const float y
   float cursorY = y;
   uint32_t prevChar = 0;
 
-  for (size_t i = 0; i < text.length(); ++i) {
-    uint32_t charCode = static_cast<uint32_t>(text[i]);
+  const auto codepoints = UTF8::to_codepoints(text);
+  for (size_t i = 0; i < codepoints.size(); ++i) {
+    uint32_t charCode = codepoints[i];
 
     if (charCode == '\n') {
       cursorX = x;

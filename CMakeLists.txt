@@ -77,6 +77,7 @@ set(HIC_BASE_HEADERS
         utils/animation.hpp
         utils/util.hpp
         utils/bmfont.hpp
+        utils/utf8.hpp
         assets/base.hpp
         assets/audio.hpp
         assets/image.hpp
@@ -155,8 +156,8 @@ if(HIC_USE_IMGUI)
     )
     target_include_directories(imgui
             PUBLIC
-            $<BUILD_INTERFACE:${_imgui_SOURCE_DIR}>
-            $<BUILD_INTERFACE:${_imgui_SOURCE_DIR}/backends>
+                $<BUILD_INTERFACE:${_imgui_SOURCE_DIR}>
+                $<BUILD_INTERFACE:${_imgui_SOURCE_DIR}/backends>
             PRIVATE ${_imgui_SOURCE_DIR}
     )
     target_link_libraries(imgui PRIVATE SDL3::SDL3)
