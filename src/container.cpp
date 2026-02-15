@@ -110,6 +110,7 @@ void Container::handleEvent(const SDL_Event& e) {
       updateCursor(cursor);
     } break;
 
+    case SDL_EVENT_TEXT_INPUT:
     case SDL_EVENT_KEY_DOWN:
     case SDL_EVENT_KEY_UP:
       root->iHandleKeyboardEvent(e);
