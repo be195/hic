@@ -319,6 +319,7 @@ GPUShader::TextureInfo* GPUShader::acquireBridgeTexture(SDL_Renderer* r) {
     SDL_UnlockMutex(texturePoolMutex);
     return info;
   }
+  SDL_UnlockMutex(texturePoolMutex);
 
   // no available textures in the pool; create a new one
   SDL_Texture* tex = SDL_CreateTexture(r,
@@ -341,6 +342,7 @@ GPUShader::TextureInfo* GPUShader::acquireBridgeTexture(SDL_Renderer* r) {
 
   if (!gpuTex) {
     HICL("static GPUShader").error("Failed to cast bridge texture to GPU texture");
+    SDL_DestroyTexture(tex);
     return nullptr;
   }
 
@@ -349,6 +351,10 @@ GPUShader::TextureInfo* GPUShader::acquireBridgeTexture(SDL_Renderer* r) {
 }
 
 void GPUShader::releaseBridgeTexture(TextureInfo* info) {
+  if (!texturePoolMutex) {
+    delete info;
+    return;
+  }
   SDL_LockMutex(texturePoolMutex);
   texturePool.push_back(info);
   SDL_UnlockMutex(texturePoolMutex);
@@ -362,6 +368,8 @@ void GPUShader::cleanupTexturePool() {
 
   texturePool.clear();
   SDL_UnlockMutex(texturePoolMutex);
+  SDL_DestroyMutex(texturePoolMutex);
+  texturePoolMutex = nullptr;
 }
 
 void GPUShader::createDefaultSampler() {
