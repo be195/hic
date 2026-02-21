@@ -108,8 +108,7 @@ private:
   bool useGlobalTexture = true;
   bool texturesReady = false;
 
-  // Non-null when this object is a per-instance clone; shared GPU resources
-  // (pipeline, device, sampler, buffers) are owned by the parent.
+  // non-null when this object is a per-instance clone
   std::shared_ptr<GPUShader> parent;
 
   static void initGlobalBridge(SDL_Renderer *r);

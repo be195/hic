@@ -18,9 +18,7 @@ struct HIC_API Base : std::enable_shared_from_this<Base> {
 
   virtual std::string getCacheKey() const { return ""; }
 
-  // Returns a new per-instance wrapper that shares immutable GPU resources
-  // with this asset but has its own mutable render state.
-  // Returns nullptr if the asset does not support instancing (default).
+  // returns nullptr if the asset does not support instancing (default).
   virtual std::shared_ptr<Base> createInstance() { return nullptr; }
 
   virtual void tick() {}

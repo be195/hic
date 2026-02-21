@@ -77,7 +77,7 @@ int spawnProcess(const char* exe, const std::vector<std::string>& args) {
 #endif
 }
 
-#define CHILD_ARG "--child"
+#define CHILD_ARG "--hic-child"
 
 namespace hic {
 

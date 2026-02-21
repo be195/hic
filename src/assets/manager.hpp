@@ -33,9 +33,9 @@ private:
   void addToCache(const std::string& key, const std::shared_ptr<Base> &asset);
   std::shared_ptr<Base> loadCache(const std::string& key);
 
-  // If the cached asset supports per-instance cloning, returns a fresh instance
+  // if the cached asset supports per-instance cloning, returns a fresh instance
   // that shares immutable GPU resources with the cached original.
-  // Returns nullptr when the asset does not implement createInstance().
+  // returns nullptr when the asset does not implement createInstance().
   static std::shared_ptr<Base> tryInstance(const std::shared_ptr<Base>& cached) {
     return cached ? cached->createInstance() : nullptr;
   }

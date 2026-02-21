@@ -36,8 +36,8 @@ GPUShader::GPUShader(std::string vertexFile, std::string fragmentFile, Config co
   , useGlobalTexture(useGlobal) {}
 
 std::shared_ptr<Base> GPUShader::createInstance() {
-  // Instances always get their own bridge texture (useGlobal=false) so that
-  // each consumer renders into an independent SDL texture.  Sharing the global
+  // instances always get their own bridge texture (useGlobal=false) so that
+  // each consumer renders into an independent SDL texture. sharing the global
   // bridge texture across multiple begin()/end() cycles would cause the earlier
   // renders to be clobbered before the SDL renderer batch is flushed.
   auto instance = std::make_shared<GPUShader>(vertexFileName, fragmentFileName, config, false);
@@ -49,9 +49,11 @@ std::shared_ptr<Base> GPUShader::createInstance() {
 GPUShader::~GPUShader() {
   if (vertexData) SDL_free(vertexData);
   if (fragmentData) SDL_free(fragmentData);
-  // Only destroy the bridge texture when it is instance-owned (not the shared global).
+
+  // only destroy the bridge texture when it is instance-owned (not the shared global).
   if (bridgeTexture && bridgeTexture != bridgeTexture_)
     SDL_DestroyTexture(bridgeTexture);
+
   // GPU resources are owned by the original (non-instance) shader; never release them here
   // when this object is a per-instance clone backed by a parent.
   if (!parent && device) {
@@ -155,8 +157,8 @@ void GPUShader::preload() {
 }
 
 void GPUShader::use(SDL_Renderer* renderer) {
-  // Instances (clones) borrow all GPU resources from their parent; skip
-  // pipeline creation entirely.  The pipeline pointer will be valid once the
+  // instances (clones) borrow all GPU resources from their parent; skip
+  // pipeline creation entirely. the pipeline pointer will be valid once the
   // parent shader has been processed by the asset manager.
   if (parent) return;
   if (!loaded || pipeline) return;
