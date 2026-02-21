@@ -7,6 +7,10 @@
 namespace hic::Assets {
 
 Image::~Image() {
+  if (surface) {
+    SDL_DestroySurface(surface);
+    surface = nullptr;
+  }
   if (texture) {
     SDL_DestroyTexture(texture);
     texture = nullptr;
@@ -14,8 +18,15 @@ Image::~Image() {
 }
 
 void Image::preload() {
-  if (texture)
+  if (texture) {
     SDL_DestroyTexture(texture);
+    texture = nullptr;
+  }
+
+  if (surface) {
+    SDL_DestroySurface(surface);
+    surface = nullptr;
+  }
 
   surface = loadSurfaceFromFile(fileName.c_str());
 }

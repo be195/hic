@@ -34,8 +34,8 @@ public:
 private:
   std::vector<unsigned char> buffer;
 
-  SDL_Mutex* bufferMutex;
-  SDL_Mutex* handlesMutex;
+  SDL_Mutex* bufferMutex = nullptr;
+  SDL_Mutex* handlesMutex = nullptr;
   std::unordered_map<OggOpusFile*, OpusMemoryStream*> handles;
 
   static int _closeCallback(void* stream);

@@ -351,6 +351,10 @@ GPUShader::TextureInfo* GPUShader::acquireBridgeTexture(SDL_Renderer* r) {
 }
 
 void GPUShader::releaseBridgeTexture(TextureInfo* info) {
+  if (!texturePoolMutex) {
+    delete info;
+    return;
+  }
   SDL_LockMutex(texturePoolMutex);
   texturePool.push_back(info);
   SDL_UnlockMutex(texturePoolMutex);

@@ -98,6 +98,11 @@ void BitmapFont::use(SDL_Renderer *renderer) {
 
   for (const auto texture: textures | std::views::values)
     SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
+
+  for (const auto surface : surfaces | std::views::values)
+    SDL_DestroySurface(surface);
+  surfaces.clear();
+
   SDL_UnlockMutex(mutex);
 }
 
