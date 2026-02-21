@@ -107,6 +107,7 @@ public:
   }
 
   std::shared_ptr<Base> createInstance() override;
+  static void cleanupTexturePool();
 
 private:
   std::string vertexFileName;
@@ -126,7 +127,6 @@ private:
   static SDL_Mutex* texturePoolMutex;
   static TextureInfo* acquireBridgeTexture(SDL_Renderer* r);
   static void releaseBridgeTexture(TextureInfo* info);
-  static void cleanupTexturePool();
 
   SDL_GPUGraphicsPipeline* pipeline = nullptr;
   SDL_GPUDevice* device = nullptr;
