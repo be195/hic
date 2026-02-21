@@ -19,7 +19,7 @@ struct HIC_API Base : std::enable_shared_from_this<Base> {
   virtual std::string getCacheKey() const { return ""; }
 
   // returns nullptr if the asset does not support instancing (default).
-  virtual std::shared_ptr<Base> createInstance() { return nullptr; }
+  virtual std::unique_ptr<Base> createInstance() { return nullptr; }
 
   virtual void tick() {}
 };

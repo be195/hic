@@ -35,7 +35,7 @@ GPUShader::GPUShader(std::string vertexFile, std::string fragmentFile, Config co
   , config(std::move(config))
   , useGlobalTexture(useGlobal) {}
 
-std::shared_ptr<Base> GPUShader::createInstance() {
+std::unique_ptr<Base> GPUShader::createInstance() {
   // instances always get their own bridge texture (useGlobal=false) so that
   // each consumer renders into an independent SDL texture. sharing the global
   // bridge texture across multiple begin()/end() cycles would cause the earlier
