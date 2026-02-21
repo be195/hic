@@ -142,6 +142,7 @@ void GPUShader::use(SDL_Renderer* renderer) {
     return;
   }
 
+  loaded = false;
   createPipeline();
   createDefaultSampler();
   createBuffers(config.vertexData, config.indexData);
@@ -384,6 +385,7 @@ void GPUShader::createDefaultSampler() {
 }
 
 void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height) {
+  if (loaded) use(renderer);
   auto* const effectivePipeline = parent ? parent->pipeline : pipeline;
   auto* const effectiveDevice   = parent ? parent->device   : device;
 
