@@ -5,6 +5,33 @@
 #include <SDL3/SDL.h>
 #include <unordered_map>
 #include <string>
+#include <utils/logging.hpp>
+
+#define HIC_SHADER_ENTRYPOINT "main"
+
+#if defined(_WIN32) || defined(__CYGWIN__)
+#define HIC_GPUSHADER_EXT ".dxil"
+#define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_DXIL
+#elif defined(__APPLE__)
+#define HIC_GPUSHADER_EXT ".metal"
+#define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_MSL
+#else
+#define HIC_GPUSHADER_EXT ".spv"
+#define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_SPIRV
+#endif
+
+#if defined(HIC_FORCE_GPUSHADER_FORMAT) && defined(HIC_FORCE_GPUSHADER_EXT)
+#define HIC_GPUSHADER_EXT HIC_FORCE_GPUSHADER_EXT
+#define HIC_GPUSHADER_FORMAT HIC_FORCE_GPUSHADER_FORMAT
+#endif
+
+#ifndef HIC_SHADER_BRIDGE_PIXEL_FORMAT
+#define HIC_SHADER_BRIDGE_PIXEL_FORMAT SDL_PIXELFORMAT_BGRA32
+#endif
+
+#ifndef HIC_SHADER_ATLAS_SIZE
+#define HIC_SHADER_ATLAS_SIZE 512
+#endif
 
 namespace hic::Assets {
 
@@ -87,6 +114,21 @@ private:
   std::string fragmentFileName;
   Config config;
 
+  struct TextureInfo {
+    SDL_Texture* bridgeTexture;
+    SDL_GPUTexture* gpuHandle;
+
+    ~TextureInfo() {
+      if (bridgeTexture) SDL_DestroyTexture(bridgeTexture);
+    }
+  };
+
+  static std::vector<TextureInfo*> texturePool;
+  static SDL_Mutex* texturePoolMutex;
+  static TextureInfo* acquireBridgeTexture(SDL_Renderer* r);
+  static void releaseBridgeTexture(TextureInfo* info);
+  static void cleanupTexturePool();
+
   SDL_GPUGraphicsPipeline* pipeline = nullptr;
   SDL_GPUDevice* device = nullptr;
   SDL_Renderer* activeRenderer = nullptr;
@@ -100,19 +142,13 @@ private:
   SDL_GPUCommandBuffer* commandBuffer = nullptr;
   SDL_GPURenderPass* renderPass = nullptr;
   SDL_GPUSampler* defaultSampler = nullptr;
-  static SDL_Texture* bridgeTexture_;
-  static SDL_GPUTexture* gpuHandle_;
-  static bool texturesReady_;
-  SDL_Texture* bridgeTexture = nullptr;
-  SDL_GPUTexture* gpuHandle = nullptr;
+  TextureInfo* bridgeTextureInfo = nullptr;
   bool useGlobalTexture = true;
   bool texturesReady = false;
 
   // non-null when this object is a per-instance clone
   std::shared_ptr<GPUShader> parent;
 
-  static void initGlobalBridge(SDL_Renderer *r);
-  void initInstanceBridge(SDL_Renderer *r);
   void initBridge(SDL_Renderer *r);
   bool createPipeline();
   void createDefaultSampler();

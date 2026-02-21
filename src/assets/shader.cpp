@@ -1,32 +1,6 @@
 #include "shader.hpp"
 #include "../utils/logging.hpp"
 
-#define HIC_SHADER_ENTRYPOINT "main"
-
-#if defined(_WIN32) || defined(__CYGWIN__)
-#define HIC_GPUSHADER_EXT ".dxil"
-#define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_DXIL
-#elif defined(__APPLE__)
-#define HIC_GPUSHADER_EXT ".metal"
-#define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_MSL
-#else
-#define HIC_GPUSHADER_EXT ".spv"
-#define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_SPIRV
-#endif
-
-#if defined(HIC_FORCE_GPUSHADER_FORMAT) && defined(HIC_FORCE_GPUSHADER_EXT)
-#define HIC_GPUSHADER_EXT HIC_FORCE_GPUSHADER_EXT
-#define HIC_GPUSHADER_FORMAT HIC_FORCE_GPUSHADER_FORMAT
-#endif
-
-#ifndef HIC_SHADER_BRIDGE_PIXEL_FORMAT
-#define HIC_SHADER_BRIDGE_PIXEL_FORMAT SDL_PIXELFORMAT_BGRA32
-#endif
-
-#ifndef HIC_SHADER_ATLAS_SIZE
-#define HIC_SHADER_ATLAS_SIZE 512
-#endif
-
 namespace hic::Assets {
 
 GPUShader::GPUShader(std::string vertexFile, std::string fragmentFile, Config config, bool useGlobal)
@@ -50,9 +24,8 @@ GPUShader::~GPUShader() {
   if (vertexData) SDL_free(vertexData);
   if (fragmentData) SDL_free(fragmentData);
 
-  // only destroy the bridge texture when it is instance-owned (not the shared global).
-  if (bridgeTexture && bridgeTexture != bridgeTexture_)
-    SDL_DestroyTexture(bridgeTexture);
+  if (bridgeTextureInfo)
+    releaseBridgeTexture(bridgeTextureInfo);
 
   // GPU resources are owned by the original (non-instance) shader; never release them here
   // when this object is a per-instance clone backed by a parent.
@@ -174,80 +147,16 @@ void GPUShader::use(SDL_Renderer* renderer) {
   createBuffers(config.vertexData, config.indexData);
 }
 
-void GPUShader::initGlobalBridge(SDL_Renderer *r) {
-  if (texturesReady_) return;
-  texturesReady_ = true;
-
-  bridgeTexture_ = SDL_CreateTexture(r,
-    HIC_SHADER_BRIDGE_PIXEL_FORMAT,
-    SDL_TEXTUREACCESS_TARGET,
-    HIC_SHADER_ATLAS_SIZE, HIC_SHADER_ATLAS_SIZE
-  );
-
-  if (!bridgeTexture_) {
-    HICL("static GPUShader").error("Failed to create bridge texture:", SDL_GetError());
-    return;
-  }
-
-  SDL_SetTextureScaleMode(bridgeTexture_, SDL_SCALEMODE_NEAREST);
-  SDL_SetRenderTarget(r, bridgeTexture_);
-  SDL_RenderClear(r);
-  SDL_SetRenderTarget(r, nullptr);
-
-  // explicitly flush to ensure the command buffer reaches the GPU driver logic
-  SDL_FlushRenderer(r);
-
-  gpuHandle_ = static_cast<SDL_GPUTexture *>(SDL_GetPointerProperty(
-    SDL_GetTextureProperties(bridgeTexture_),
-    SDL_PROP_TEXTURE_GPU_TEXTURE_POINTER,
-    nullptr
-  ));
-
-  if (!gpuHandle_)
-    HICL("static GPUShader").error("Failed to cast bridge texture to GPU texture");
-}
-
-void GPUShader::initInstanceBridge(SDL_Renderer *r) {
-  bridgeTexture = SDL_CreateTexture(r,
-    HIC_SHADER_BRIDGE_PIXEL_FORMAT,
-    SDL_TEXTUREACCESS_TARGET,
-    HIC_SHADER_ATLAS_SIZE, HIC_SHADER_ATLAS_SIZE
-  );
-
-  if (!bridgeTexture) {
-    HICL("static GPUShader").error("Failed to create bridge texture:", SDL_GetError());
-    return;
-  }
-
-  SDL_SetTextureScaleMode(bridgeTexture, SDL_SCALEMODE_NEAREST);
-  SDL_SetRenderTarget(r, bridgeTexture);
-  SDL_RenderClear(r);
-  SDL_SetRenderTarget(r, nullptr);
-
-  // explicitly flush to ensure the command buffer reaches the GPU driver logic
-  SDL_FlushRenderer(r);
-
-  gpuHandle = static_cast<SDL_GPUTexture *>(SDL_GetPointerProperty(
-    SDL_GetTextureProperties(bridgeTexture),
-    SDL_PROP_TEXTURE_GPU_TEXTURE_POINTER,
-    nullptr
-  ));
-
-  if (!gpuHandle)
-    HICL("static GPUShader").error("Failed to cast bridge texture to GPU texture");
-}
-
 void GPUShader::initBridge(SDL_Renderer *r) {
   if (texturesReady) return;
 
-  if (useGlobalTexture) {
-    if (!bridgeTexture_)
-      initGlobalBridge(r);
-    bridgeTexture = bridgeTexture_;
-    gpuHandle = gpuHandle_;
-  } else
-    initInstanceBridge(r);
+  const auto textureInfo = acquireBridgeTexture(r);
+  if (!textureInfo) {
+    HICL("GPUShader").error("Failed to acquire bridge texture");
+    return;
+  }
 
+  bridgeTextureInfo = textureInfo;
   texturesReady = true;
 }
 
@@ -400,9 +309,60 @@ void GPUShader::bindBuffers() const {
     bindIndexBuffer(effectiveShader->indexBuffer, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 }
 
-SDL_GPUTexture* GPUShader::gpuHandle_ = nullptr;
-SDL_Texture* GPUShader::bridgeTexture_ = nullptr;
-bool GPUShader::texturesReady_ = false;
+SDL_Mutex* GPUShader::texturePoolMutex = SDL_CreateMutex();
+std::vector<GPUShader::TextureInfo*> GPUShader::texturePool;
+GPUShader::TextureInfo* GPUShader::acquireBridgeTexture(SDL_Renderer* r) {
+  SDL_LockMutex(texturePoolMutex);
+  if (!texturePool.empty()) {
+    TextureInfo* info = texturePool.back();
+    texturePool.pop_back();
+    SDL_UnlockMutex(texturePoolMutex);
+    return info;
+  }
+
+  // no available textures in the pool; create a new one
+  SDL_Texture* tex = SDL_CreateTexture(r,
+    HIC_SHADER_BRIDGE_PIXEL_FORMAT,
+    SDL_TEXTUREACCESS_TARGET,
+    HIC_SHADER_ATLAS_SIZE, HIC_SHADER_ATLAS_SIZE
+  );
+  SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
+  SDL_SetRenderTarget(r, tex);
+  SDL_RenderClear(r);
+  SDL_SetRenderTarget(r, nullptr);
+
+  SDL_FlushRenderer(r);
+
+  SDL_GPUTexture* gpuTex = static_cast<SDL_GPUTexture*>(SDL_GetPointerProperty(
+    SDL_GetTextureProperties(tex),
+    SDL_PROP_TEXTURE_GPU_TEXTURE_POINTER,
+    nullptr
+  ));
+
+  if (!gpuTex) {
+    HICL("static GPUShader").error("Failed to cast bridge texture to GPU texture");
+    return nullptr;
+  }
+
+  TextureInfo* newInfo = new TextureInfo{ tex, gpuTex };
+  return newInfo;
+}
+
+void GPUShader::releaseBridgeTexture(TextureInfo* info) {
+  SDL_LockMutex(texturePoolMutex);
+  texturePool.push_back(info);
+  SDL_UnlockMutex(texturePoolMutex);
+}
+
+void GPUShader::cleanupTexturePool() {
+  SDL_LockMutex(texturePoolMutex);
+
+  for (const auto& info : texturePool)
+    delete info;
+
+  texturePool.clear();
+  SDL_UnlockMutex(texturePoolMutex);
+}
 
 void GPUShader::createDefaultSampler() {
   SDL_GPUSamplerCreateInfo samplerInfo{};
@@ -420,15 +380,15 @@ void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height)
   auto* const effectiveDevice   = parent ? parent->device   : device;
 
   if (!effectivePipeline) return;
-  if (!bridgeTexture) initBridge(renderer);
+  if (!bridgeTextureInfo) initBridge(renderer);
 
   activeRenderer = renderer;
 
-  if (!gpuHandle) return;
+  if (!bridgeTextureInfo) return;
   commandBuffer = SDL_AcquireGPUCommandBuffer(effectiveDevice);
 
   SDL_GPUColorTargetInfo colorTarget{};
-  colorTarget.texture = gpuHandle;
+  colorTarget.texture = bridgeTextureInfo->gpuHandle;
   colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
   colorTarget.clear_color = { 0, 0, 0, 0 };
   colorTarget.store_op = SDL_GPU_STOREOP_STORE;
@@ -448,8 +408,8 @@ void GPUShader::end() {
     commandBuffer = nullptr;
   }
 
-  if (bridgeTexture)
-    SDL_RenderTexture(activeRenderer, bridgeTexture, nullptr, nullptr);
+  if (bridgeTextureInfo)
+    SDL_RenderTexture(activeRenderer, bridgeTextureInfo->bridgeTexture, nullptr, nullptr);
 
   activeRenderer = nullptr;
 }
