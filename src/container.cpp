@@ -1,5 +1,6 @@
 #include "basecomponent.hpp"
 #include "container.hpp"
+#include "assets/shader.hpp"
 #include <SDL3/SDL.h>
 
 #include <utility>
@@ -41,6 +42,8 @@ Container::~Container() {
   if (const auto root = rootPtr.load(std::memory_order_acquire))
     root->iDestroy();
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
+
+  Assets::GPUShader::cleanupTexturePool();
 }
 
 void Container::setRoot(const std::shared_ptr<BaseComponent> &newRoot) {

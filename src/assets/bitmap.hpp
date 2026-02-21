@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
+#include <vector>
 #include "base.hpp"
 #include "../utils/bmfont.hpp"
 
@@ -30,7 +32,7 @@ public:
 
   std::string getCacheKey() const override { return "bmf#" + folderName; }
 private:
-  SDL_Mutex* mutex;
+  SDL_Mutex* mutex = nullptr;
 
   void cleanup();
 };

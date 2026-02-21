@@ -60,7 +60,7 @@ void BitmapFont::preload() {
       surfaces.insert({page, surface});
     else {
       HICL("BitmapFont").warn("failed to load font page", page, folderName);
-      ok = false;
+      cleanup();
       SDL_UnlockMutex(mutex);
       return;
     }
