@@ -80,7 +80,7 @@ public:
     return "sh#" + vertexFileName + "#" + fragmentFileName;
   }
 
-  std::unique_ptr<Base> createInstance() override;
+  std::shared_ptr<Base> createInstance() override;
 
 private:
   std::string vertexFileName;

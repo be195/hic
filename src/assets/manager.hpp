@@ -36,7 +36,7 @@ private:
   // if the cached asset supports per-instance cloning, returns a fresh instance
   // that shares immutable GPU resources with the cached original.
   // returns nullptr when the asset does not implement createInstance().
-  static std::unique_ptr<Base> tryInstance(const std::shared_ptr<Base>& cached) {
+  static std::shared_ptr<Base> tryInstance(const std::shared_ptr<Base>& cached) {
     return cached ? cached->createInstance() : nullptr;
   }
 public:
