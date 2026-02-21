@@ -32,6 +32,13 @@ private:
   void threadLoop();
   void addToCache(const std::string& key, const std::shared_ptr<Base> &asset);
   std::shared_ptr<Base> loadCache(const std::string& key);
+
+  // If the cached asset supports per-instance cloning, returns a fresh instance
+  // that shares immutable GPU resources with the cached original.
+  // Returns nullptr when the asset does not implement createInstance().
+  static std::shared_ptr<Base> tryInstance(const std::shared_ptr<Base>& cached) {
+    return cached ? cached->createInstance() : nullptr;
+  }
 public:
   Manager();
   ~Manager();
@@ -61,8 +68,11 @@ std::shared_ptr<T> Manager::load(Args&&... args) {
   const auto tempAsset = std::make_shared<T>(std::forward<Args>(args)...);
   std::string cacheKey = tempAsset->getCacheKey();
 
-  if (const auto cached = loadCache(cacheKey))
+  if (const auto cached = loadCache(cacheKey)) {
+    if (auto instance = tryInstance(cached))
+      return std::static_pointer_cast<T>(instance);
     return std::static_pointer_cast<T>(cached);
+  }
 
   LoadTask task{tempAsset, nullptr};
 
@@ -84,6 +94,10 @@ std::shared_ptr<T> Manager::loadWithCallback(std::function<void()> callback, Arg
   std::string cacheKey = tempAsset->getCacheKey();
 
   if (const auto cached = loadCache(cacheKey)) {
+    if (auto instance = tryInstance(cached)) {
+      if (callback) callback();
+      return std::static_pointer_cast<T>(instance);
+    }
     if (callback) callback();
     return std::static_pointer_cast<T>(cached);
   }

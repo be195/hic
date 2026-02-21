@@ -35,11 +35,26 @@ GPUShader::GPUShader(std::string vertexFile, std::string fragmentFile, Config co
   , config(std::move(config))
   , useGlobalTexture(useGlobal) {}
 
+std::shared_ptr<Base> GPUShader::createInstance() {
+  // Instances always get their own bridge texture (useGlobal=false) so that
+  // each consumer renders into an independent SDL texture.  Sharing the global
+  // bridge texture across multiple begin()/end() cycles would cause the earlier
+  // renders to be clobbered before the SDL renderer batch is flushed.
+  auto instance = std::make_shared<GPUShader>(vertexFileName, fragmentFileName, config, false);
+  instance->parent = std::static_pointer_cast<GPUShader>(shared_from_this());
+  instance->loaded = true;
+  return instance;
+}
+
 GPUShader::~GPUShader() {
   if (vertexData) SDL_free(vertexData);
   if (fragmentData) SDL_free(fragmentData);
-  if (bridgeTexture) SDL_DestroyTexture(bridgeTexture);
-  if (device) {
+  // Only destroy the bridge texture when it is instance-owned (not the shared global).
+  if (bridgeTexture && bridgeTexture != bridgeTexture_)
+    SDL_DestroyTexture(bridgeTexture);
+  // GPU resources are owned by the original (non-instance) shader; never release them here
+  // when this object is a per-instance clone backed by a parent.
+  if (!parent && device) {
     if (defaultSampler) SDL_ReleaseGPUSampler(device, defaultSampler);
     if (pipeline) SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
     if (vertexBuffer) SDL_ReleaseGPUBuffer(device, vertexBuffer);
@@ -140,6 +155,10 @@ void GPUShader::preload() {
 }
 
 void GPUShader::use(SDL_Renderer* renderer) {
+  // Instances (clones) borrow all GPU resources from their parent; skip
+  // pipeline creation entirely.  The pipeline pointer will be valid once the
+  // parent shader has been processed by the asset manager.
+  if (parent) return;
   if (!loaded || pipeline) return;
 
   device = SDL_GetGPURendererDevice(renderer);
@@ -372,10 +391,11 @@ bool GPUShader::createPipeline() {
 }
 
 void GPUShader::bindBuffers() const {
-  if (vertexBuffer)
-    bindVertexBuffer(vertexBuffer, 0, 0);
-  if (indexBuffer)
-    bindIndexBuffer(indexBuffer, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+  const GPUShader* effectiveShader = parent ? parent.get() : this;
+  if (effectiveShader->vertexBuffer)
+    bindVertexBuffer(effectiveShader->vertexBuffer, 0, 0);
+  if (effectiveShader->indexBuffer)
+    bindIndexBuffer(effectiveShader->indexBuffer, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 }
 
 SDL_GPUTexture* GPUShader::gpuHandle_ = nullptr;
@@ -394,13 +414,16 @@ void GPUShader::createDefaultSampler() {
 }
 
 void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height) {
-  if (!pipeline) return;
+  auto* const effectivePipeline = parent ? parent->pipeline : pipeline;
+  auto* const effectiveDevice   = parent ? parent->device   : device;
+
+  if (!effectivePipeline) return;
   if (!bridgeTexture) initBridge(renderer);
 
   activeRenderer = renderer;
 
   if (!gpuHandle) return;
-  commandBuffer = SDL_AcquireGPUCommandBuffer(device);
+  commandBuffer = SDL_AcquireGPUCommandBuffer(effectiveDevice);
 
   SDL_GPUColorTargetInfo colorTarget{};
   colorTarget.texture = gpuHandle;
@@ -409,7 +432,7 @@ void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height)
   colorTarget.store_op = SDL_GPU_STOREOP_STORE;
 
   renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1, nullptr);
-  SDL_BindGPUGraphicsPipeline(renderPass, pipeline);
+  SDL_BindGPUGraphicsPipeline(renderPass, effectivePipeline);
 }
 
 void GPUShader::end() {
@@ -434,7 +457,7 @@ void GPUShader::bindFragmentTexture(const uint32_t slot, SDL_GPUTexture* texture
 
   SDL_GPUTextureSamplerBinding binding{};
   binding.texture = texture;
-  binding.sampler = defaultSampler;
+  binding.sampler = parent ? parent->defaultSampler : defaultSampler;
 
   SDL_BindGPUFragmentSamplers(renderPass, slot, &binding, 1);
 }
@@ -444,7 +467,7 @@ void GPUShader::bindVertexTexture(const uint32_t slot, SDL_GPUTexture* texture) 
 
   SDL_GPUTextureSamplerBinding binding{};
   binding.texture = texture;
-  binding.sampler = defaultSampler;
+  binding.sampler = parent ? parent->defaultSampler : defaultSampler;
 
   SDL_BindGPUVertexSamplers(renderPass, slot, &binding, 1);
 }

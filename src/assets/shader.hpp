@@ -80,6 +80,8 @@ public:
     return "sh#" + vertexFileName + "#" + fragmentFileName;
   }
 
+  std::shared_ptr<Base> createInstance() override;
+
 private:
   std::string vertexFileName;
   std::string fragmentFileName;
@@ -105,6 +107,10 @@ private:
   SDL_GPUTexture* gpuHandle = nullptr;
   bool useGlobalTexture = true;
   bool texturesReady = false;
+
+  // Non-null when this object is a per-instance clone; shared GPU resources
+  // (pipeline, device, sampler, buffers) are owned by the parent.
+  std::shared_ptr<GPUShader> parent;
 
   static void initGlobalBridge(SDL_Renderer *r);
   void initInstanceBridge(SDL_Renderer *r);
