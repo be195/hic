@@ -53,7 +53,7 @@ public:
   void ctrThreadLoop();
   SDL_Thread* ctrThread = nullptr;
 
-  void update(float deltaTime, float time) const;
+  virtual void update(float deltaTime, float time) const;
   virtual void render(float time) const;
   void handleEvent(const SDL_Event& e);
 
