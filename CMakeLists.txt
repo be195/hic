@@ -137,7 +137,7 @@ if(HIC_USE_IMGUI)
     CPMAddPackage(
             NAME _imgui
             GITHUB_REPOSITORY ocornut/imgui
-            GIT_TAG v1.92.5
+            GIT_TAG docking
     )
 
     add_library(imgui STATIC
