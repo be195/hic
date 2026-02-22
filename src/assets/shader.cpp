@@ -21,6 +21,8 @@ std::shared_ptr<Base> GPUShader::createInstance() {
 }
 
 GPUShader::~GPUShader() {
+  HICL("GPUShader").debug("destroying shader:", vertexFileName, fragmentFileName, "is child:", !!parent);
+
   if (vertexData) SDL_free(vertexData);
   if (fragmentData) SDL_free(fragmentData);
 
