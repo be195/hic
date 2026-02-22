@@ -47,7 +47,6 @@ public:
 
   Assets::Manager* getAssetManager() const { return assetManager.get(); }
   Audio::Manager* getAudioManager() const { return audioManager.get(); }
-private:
   std::atomic<bool> loading = {false};
 
   static int ctrThreadFunc(void* data);
