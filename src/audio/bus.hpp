@@ -36,6 +36,9 @@ public:
   float getVolume() const;
   void iSetVolume(float newVolume);
 
+  virtual bool isFinished() const { return false; }
+  virtual bool isDiscardOnFinish() const { return false; }
+
   std::shared_ptr<AudioBus> createAudioBus(const std::shared_ptr<Assets::Audio> &audio);
 private:
   std::vector<std::shared_ptr<Bus>> children;
@@ -50,9 +53,23 @@ public:
   ~AudioBus() override;
 
   void read(float* samples, int frames) override;
+
+  bool isFinished() const override;
+  bool isDiscardOnFinish() const override;
+  void setDiscardOnFinish(bool discard);
+
+  void play();
+  void stop();
+  bool isPlaying() const;
+
+  void setLooping(bool looping);
+  bool isLooping() const;
+
 private:
   std::shared_ptr<Assets::Audio> audio;
   OpusStream* stream;
+  std::atomic<bool> playing{true};
+  std::atomic<bool> discardOnFinish{false};
 };
 
 }
