@@ -89,6 +89,10 @@ void Bus::iRead(float *samples, const int frames) {
   for (const auto& child : children)
     child->iRead(samples, frames);
 
+  std::erase_if(children, [](const auto& child) {
+    return child->isDiscardOnFinish() && child->isFinished();
+  });
+
   if (const float vol = volume.load(std::memory_order_relaxed); vol != 1.0f || !effects.empty()) {
     for (const auto& effect : effects)
       effect->apply(samples, frames);
@@ -113,8 +117,42 @@ AudioBus::~AudioBus() {
 }
 
 void AudioBus::read(float *samples, const int frames) {
+  if (!playing.load(std::memory_order_acquire)) return;
   if (stream)
     stream->getSamples(samples, frames);
+}
+
+bool AudioBus::isFinished() const {
+  return !stream || stream->isFinished();
+}
+
+bool AudioBus::isDiscardOnFinish() const {
+  return discardOnFinish.load(std::memory_order_relaxed);
+}
+
+void AudioBus::setDiscardOnFinish(const bool discard) {
+  discardOnFinish.store(discard, std::memory_order_relaxed);
+}
+
+void AudioBus::play() {
+  playing.store(true, std::memory_order_release);
+}
+
+void AudioBus::stop() {
+  playing.store(false, std::memory_order_release);
+}
+
+bool AudioBus::isPlaying() const {
+  return playing.load(std::memory_order_acquire);
+}
+
+void AudioBus::setLooping(const bool looping) {
+  if (stream)
+    stream->setLooping(looping);
+}
+
+bool AudioBus::isLooping() const {
+  return stream && stream->isLooping();
 }
 
 }
