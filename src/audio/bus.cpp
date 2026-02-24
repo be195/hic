@@ -86,12 +86,14 @@ void Bus::setVolume(const float newVolume) {
 void Bus::iRead(float *samples, const int frames) {
   read(samples, frames);
 
-  for (const auto& child : children)
-    child->iRead(samples, frames);
-
-  std::erase_if(children, [](const auto& child) {
-    return child->isDiscardOnFinish() && child->isFinished();
-  });
+  auto it = children.begin();
+  while (it != children.end()) {
+    (*it)->iRead(samples, frames);
+    if ((*it)->isDiscardOnFinish() && (*it)->isFinished())
+      it = children.erase(it);
+    else
+      ++it;
+  }
 
   if (const float vol = volume.load(std::memory_order_relaxed); vol != 1.0f || !effects.empty()) {
     for (const auto& effect : effects)
