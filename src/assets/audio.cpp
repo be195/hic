@@ -72,7 +72,7 @@ int Audio::_readCallback(void *stream, unsigned char *ptr, const int n) {
   const size_t toRead = std::min(static_cast<size_t>(n), available);
 
   if (toRead > 0) {
-    std::memcpy(ptr, cast->data + cast->pos, toRead);
+    memcpy(ptr, cast->data + cast->pos, toRead);
     cast->pos += toRead;
   }
 
