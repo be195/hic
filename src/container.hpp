@@ -1,6 +1,8 @@
 #pragma once
 
 #include "basecomponent.hpp"
+#include <atomic>
+#include <unordered_map>
 #include <SDL3/SDL.h>
 #include <memory>
 

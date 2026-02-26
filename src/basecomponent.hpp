@@ -5,6 +5,8 @@
 #include "utils/geometry.hpp"
 #include "utils/hicapi.hpp"
 #include <memory>
+#include <vector>
+#include <atomic>
 #include <SDL3/SDL.h>
 
 namespace hic {

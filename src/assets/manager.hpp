@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 #include <queue>
+#include <atomic>
 #include "../utils/hicapi.hpp"
 #include "base.hpp"
 

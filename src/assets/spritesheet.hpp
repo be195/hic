@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_map>
 #include <optional>
 #include "image.hpp"
 #include "../utils/hicapi.hpp"
