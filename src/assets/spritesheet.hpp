@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include "image.hpp"
 #include "../utils/hicapi.hpp"
 #include <nlohmann/json.hpp>
@@ -133,6 +134,7 @@ public:
   void renderFrame(SDL_Renderer* renderer, const std::string &frame, float x, float y);
   std::shared_ptr<AnimatedSpritesheetPart> animation(const std::string &animation);
   std::shared_ptr<AnimatedSpritesheetPart> createAnimation(const std::string &animation);
+  std::optional<ssjson::ISize> getSize(const std::string &frame);
 
   std::string getCacheKey() const override { return "spr#" + folderName; }
 private:

@@ -335,4 +335,23 @@ void Spritesheet::renderFrame(SDL_Renderer* renderer, const std::string &frame, 
   SDL_RenderTexture(renderer, texture, &srcRect, &destRect);
 }
 
+std::optional<ssjson::ISize> Spritesheet::getSize(const std::string &frame) {
+  SDL_LockMutex(animationMutex);
+
+  if (!data.has_value()) {
+    SDL_UnlockMutex(animationMutex);
+    return std::nullopt;
+  }
+
+  const auto frameIt = data->frames.find(frame);
+  if (frameIt == data->frames.end()) {
+    SDL_UnlockMutex(animationMutex);
+    return std::nullopt;
+  }
+
+  const auto result = frameIt->second.sourceSize;
+  SDL_UnlockMutex(animationMutex);
+  return result;
+}
+
 }
