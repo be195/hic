@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 #define HIC_SHADER_ENTRYPOINT "main"
 
