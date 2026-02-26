@@ -136,6 +136,7 @@ public:
   std::shared_ptr<AnimatedSpritesheetPart> animation(const std::string &animation);
   std::shared_ptr<AnimatedSpritesheetPart> createAnimation(const std::string &animation);
   std::optional<ssjson::ISize> getSize(const std::string &frame);
+  std::optional<ssjson::ISize> getAnimationSize(const std::string &anim);
 
   std::string getCacheKey() const override { return "spr#" + folderName; }
 private:

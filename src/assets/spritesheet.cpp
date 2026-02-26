@@ -354,4 +354,27 @@ std::optional<ssjson::ISize> Spritesheet::getSize(const std::string &frame) {
   return result;
 }
 
+std::optional<ssjson::ISize> Spritesheet::getAnimationSize(const std::string &anim) {
+  SDL_LockMutex(animationMutex);
+
+  if (!data.has_value()) {
+    SDL_UnlockMutex(animationMutex);
+    return std::nullopt;
+  }
+
+  const auto it = data->animations.find(anim);
+  if (it == data->animations.end()) {
+    SDL_UnlockMutex(animationMutex);
+    return std::nullopt;
+  }
+
+  auto animData = it->second;
+  SDL_UnlockMutex(animationMutex);
+
+  if (animData.frames.empty()) return std::nullopt;
+  const auto frame = animData.frames.front();
+
+  return getSize(frame);
+}
+
 }
