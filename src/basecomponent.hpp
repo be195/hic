@@ -7,7 +7,11 @@
 #include <memory>
 #include <vector>
 #include <atomic>
-#include <SDL3/SDL.h>
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_render.h>
 
 namespace hic {
 
@@ -64,7 +68,7 @@ public:
 
   void markRenderTarget();
 
-  bool active = true;
+  std::atomic<bool> active{true};
   bool clip = true;
   float scale = 1.0f;
   float timeScale = 1.0f;
