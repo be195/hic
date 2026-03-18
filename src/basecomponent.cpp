@@ -78,7 +78,7 @@ void BaseComponent::iPostMount() {
 }
 
 void BaseComponent::iUpdate(float deltaTime, const float time) {
-  if (!active) return;
+  if (!active.load(std::memory_order_acquire)) return;
 
   deltaTime *= timeScale;
 
@@ -145,7 +145,7 @@ Position* BaseComponent::amIOverlappingWithMouse(const BaseComponent* component)
 }
 
 void BaseComponent::iRender(SDL_Renderer* renderer, const float time, const Position absPos, BaseComponent* lastClipParent, const Position lastClipAbsPos) {
-  if (!active) return;
+  if (!active.load(std::memory_order_acquire)) return;
 
   SDL_Rect viewport = { 0, 0, 0, 0 };
   SDL_Rect parentClip;
@@ -263,7 +263,7 @@ void BaseComponent::iDestroy() {
 }
 
 Cursor BaseComponent::iHandleMouseEvent(const SDL_Event& e, float x, float y) {
-  if (!active) return Cursor::INHERIT;
+  if (!active.load(std::memory_order_acquire)) return Cursor::INHERIT;
 
   lastMousePos = {x, y};
 
@@ -296,7 +296,7 @@ Cursor BaseComponent::iHandleMouseEvent(const SDL_Event& e, float x, float y) {
 }
 
 bool BaseComponent::iHandleKeyboardEvent(const SDL_Event &e) {
-  if (!active) return false;
+  if (!active.load(std::memory_order_acquire)) return false;
 
   for (const auto & child : std::ranges::reverse_view(children))
     if (child->iHandleKeyboardEvent(e))
