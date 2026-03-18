@@ -35,7 +35,7 @@ void Manager::threadLoop() {
     if (task.asset) {
       loading.store(true, std::memory_order_release);
 
-      HICL("AssetManager").info("preloading", task.asset->getCacheKey(), "addr", task.asset);
+      HICL("AssetManager").info("preloading", task.asset->getCacheKey());
       task.asset->preload();
 
       SDL_LockMutex(readyMutex);
@@ -105,7 +105,7 @@ void Manager::processReady(SDL_Renderer* renderer) {
     const auto [asset, callback] = std::move(ready.front());
     ready.pop();
 
-    HICL("AssetManager").info("processing ready asset", asset);
+    HICL("AssetManager").info("processing ready asset", asset->getCacheKey());
     asset->use(renderer);
 
     if (callback)
