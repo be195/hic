@@ -35,7 +35,7 @@ void Manager::threadLoop() {
     if (task.asset) {
       loading.store(true, std::memory_order_release);
 
-      HICL("AssetManager").info("preloading", task.asset);
+      HICL("AssetManager").info("preloading", task.asset->getCacheKey(), "addr", task.asset);
       task.asset->preload();
 
       SDL_LockMutex(readyMutex);
