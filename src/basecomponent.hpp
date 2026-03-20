@@ -12,6 +12,8 @@
 #include <utility>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_render.h>
+#include <functional>
+#include <mutex>
 
 namespace hic {
 
@@ -34,6 +36,7 @@ public:
   virtual void preload() {}
   virtual void premounted() {}
   virtual void mounted() {}
+  virtual void postTaskDrain() {}
   virtual void destroy() {}
 
   virtual void update(float deltaTime, float time) {}
@@ -97,6 +100,7 @@ protected:
     needsRender.store(true, std::memory_order_release);
   }
 
+  void postTask(std::function<void()> func);
 private:
   uint8_t mountedStage = 0;
   bool destroyed = false;
@@ -108,6 +112,10 @@ private:
   void triggerMouseLeave();
   void markAbsolutePosDirty() const;
   bool useRenderTarget() const;
+
+  std::mutex pendingTasksMutex;
+  std::vector<std::function<void()>> pendingTasks;
+  void drainPendingTasks();
 
   Position overlappingRes = {-1, -1};
 };

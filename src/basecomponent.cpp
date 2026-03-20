@@ -1,8 +1,21 @@
 #include "basecomponent.hpp"
 #include "container.hpp"
-#include <SDL3/SDL.h>
 #include <algorithm>
 #include <ranges>
+#include <exception>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <stdexcept>
+#include <utility>
+#include <vector>
+#include <SDL3/SDL_error.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_rect.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3/SDL_surface.h>
+#include "utils/geometry.hpp"
 
 namespace hic {
 
@@ -82,6 +95,7 @@ void BaseComponent::iUpdate(float deltaTime, const float time) {
 
   deltaTime *= timeScale;
 
+  drainPendingTasks();
   updateAnimations(deltaTime);
 
   if (fps > 0) {
@@ -142,6 +156,23 @@ Position* BaseComponent::amIOverlappingWithMouse(const BaseComponent* component)
   }
 
   return nullptr;
+}
+
+void BaseComponent::postTask(std::function<void()> func) {
+  std::lock_guard lock(pendingTasksMutex);
+  pendingTasks.push_back(std::move(func));
+}
+
+void BaseComponent::drainPendingTasks() {
+  std::vector<std::function<void()>> tasksToExecute;
+  {
+    std::lock_guard lock(pendingTasksMutex);
+    tasksToExecute.swap(pendingTasks);
+  }
+  for (const auto& task : tasksToExecute)
+    task();
+
+  postTaskDrain();
 }
 
 void BaseComponent::iRender(SDL_Renderer* renderer, const float time, const Position absPos, BaseComponent* lastClipParent, const Position lastClipAbsPos) {
