@@ -395,8 +395,10 @@ void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height)
   if (!bridgeTextureInfo) initBridge(renderer);
 
   activeRenderer = renderer;
-
   if (!bridgeTextureInfo) return;
+
+  SDL_FlushRenderer(renderer);
+
   commandBuffer = SDL_AcquireGPUCommandBuffer(effectiveDevice);
 
   SDL_GPUColorTargetInfo colorTarget{};
