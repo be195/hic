@@ -172,7 +172,6 @@ void BaseComponent::drainPendingTasks() {
   for (const auto& task : tasksToExecute)
     task();
 
-  std::lock_guard lock(pendingTasksMutex);
   postTaskDrain();
 }
 
