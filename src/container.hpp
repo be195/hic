@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <SDL3/SDL.h>
 #include <memory>
+#include <mutex>
 
 #include "assets/audio.hpp"
 #include "assets/manager.hpp"
@@ -62,8 +63,19 @@ public:
   SDL_Window* window;
   SDL_Renderer* renderer;
   std::unordered_map<std::string, std::shared_ptr<BaseComponent>> roots;
+#if defined(__APPLE__) && defined(__MACH__)
+  // there's a special place in hell for Xcode and its half-assed support for atomics;
+  // it doesn't support atomic shared_ptr at all, so we have to use a mutex to synchronize
+  // access to the root pointer instead. fun!
+#warning "using mutexes instead of atomics here as a workaround"
+  std::shared_ptr<BaseComponent> rootPtr;
+  std::shared_ptr<BaseComponent> nextPtr;
+  std::mutex rootMutex;
+  std::mutex nextMutex;
+#else
   std::atomic<std::shared_ptr<BaseComponent>> rootPtr;
   std::atomic<std::shared_ptr<BaseComponent>> nextPtr;
+#endif
   std::unique_ptr<Audio::Manager> audioManager;
   std::unique_ptr<Assets::Manager> assetManager;
   SDL_Cursor* currentSDLCursor = nullptr;
