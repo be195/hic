@@ -70,8 +70,8 @@ public:
 #warning "using mutexes instead of atomics here as a workaround"
   std::shared_ptr<BaseComponent> rootPtr;
   std::shared_ptr<BaseComponent> nextPtr;
-  std::mutex rootMutex;
-  std::mutex nextMutex;
+  mutable std::mutex rootMutex;
+  mutable std::mutex nextMutex;
 #else
   std::atomic<std::shared_ptr<BaseComponent>> rootPtr;
   std::atomic<std::shared_ptr<BaseComponent>> nextPtr;
