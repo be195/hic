@@ -13,6 +13,7 @@
 #define HIC_GPUSHADER_EXT ".dxil"
 #define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_DXIL
 #elif defined(__APPLE__)
+#define HIC_SHADER_ENTRYPOINT "main0" // hardcoded behavior in SDL_shadercross
 #define HIC_GPUSHADER_EXT ".msl"
 #define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_MSL
 #else
