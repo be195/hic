@@ -13,7 +13,7 @@
 #define HIC_GPUSHADER_EXT ".dxil"
 #define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_DXIL
 #elif defined(__APPLE__)
-#define HIC_GPUSHADER_EXT ".metal"
+#define HIC_GPUSHADER_EXT ".msl"
 #define HIC_GPUSHADER_FORMAT SDL_GPU_SHADERFORMAT_MSL
 #else
 #define HIC_GPUSHADER_EXT ".spv"
