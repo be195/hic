@@ -111,6 +111,9 @@ void Container::handleEvent(const SDL_Event& e) {
   ImGui_ImplSDL3_ProcessEvent(&e);
 #endif
 
+  if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED)
+    SDL_GetWindowSize(window, &width, &height);
+
 #if defined (__APPLE__) && defined(__MACH__)
   std::lock_guard lock(rootMutex);
   auto root = rootPtr;
@@ -124,18 +127,27 @@ void Container::handleEvent(const SDL_Event& e) {
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
     case SDL_EVENT_MOUSE_BUTTON_UP:
     case SDL_EVENT_MOUSE_WHEEL: {
-      float x = e.motion.x;
-      float y = e.motion.y;
+      int windowWidth = width;
+      int windowHeight = height;
 
-      if (lWidth != 0 && lHeight != 0) {
-        // casting here is crucial, but so fucking annoying
-        const float factorX = static_cast<float>(lWidth) / static_cast<float>(width);
-        const float factorY = static_cast<float>(lHeight) / static_cast<float>(height);
-        x *= factorX;
-        y *= factorY;
-      }
+      int logicalWidth = lWidth;
+      int logicalHeight = lHeight;
 
-      Cursor cursor = root->iHandleMouseEvent(e, x, y);
+      int scaleX = windowWidth / logicalWidth;
+      int scaleY = windowHeight / logicalHeight;
+
+      int scale = std::min(scaleX, scaleY);
+
+      int renderedWidth = logicalWidth * scale;
+      int renderedHeight = logicalHeight * scale;
+
+      float offsetX = (windowWidth - renderedWidth) / 2.0f;
+      float offsetY = (windowHeight - renderedHeight) / 2.0f;
+
+      float adjustedX = (e.motion.x - offsetX) / scale;
+      float adjustedY = (e.motion.y - offsetY) / scale;
+
+      Cursor cursor = root->iHandleMouseEvent(e, adjustedX, adjustedY);
       if (cursor == Cursor::INHERIT)
         cursor = Cursor::DEFAULT;
       updateCursor(cursor);
