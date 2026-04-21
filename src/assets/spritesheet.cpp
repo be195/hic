@@ -188,9 +188,9 @@ void AnimatedSpritesheetPart::normalizeFrames(const std::vector<std::string> &gi
   }
 }
 
-void AnimatedSpritesheetPart::render(SDL_Renderer* renderer, float x, float y) {
+void AnimatedSpritesheetPart::render(SDL_Renderer* renderer, float x, float y, const bool flipX, const bool flipY) {
   if (it == frames.end() || !spritesheet) return;
-  spritesheet->renderFrame(renderer, *it, x, y);
+  spritesheet->renderFrame(renderer, *it, x, y, flipX, flipY);
 }
 
 void AnimatedSpritesheetPart::update(const float deltaTime) {
@@ -300,7 +300,7 @@ std::shared_ptr<AnimatedSpritesheetPart> Spritesheet::createAnimation(const std:
   return std::make_shared<AnimatedSpritesheetPart>(this, animData);
 }
 
-void Spritesheet::renderFrame(SDL_Renderer* renderer, const std::string &frame, const float x, const float y) {
+void Spritesheet::renderFrame(SDL_Renderer* renderer, const std::string &frame, const float x, const float y, const bool flipX, const bool flipY) {
   if (!texture) return;
 
   SDL_LockMutex(animationMutex);
@@ -332,7 +332,10 @@ void Spritesheet::renderFrame(SDL_Renderer* renderer, const std::string &frame, 
   srcRect.w = frameData.frame.w;
   srcRect.h = frameData.frame.h;
 
-  SDL_RenderTexture(renderer, texture, &srcRect, &destRect);
+  SDL_FlipMode flip = SDL_FLIP_NONE;
+  if (flipX) flip = static_cast<SDL_FlipMode>(flip | SDL_FLIP_HORIZONTAL);
+  if (flipY) flip = static_cast<SDL_FlipMode>(flip | SDL_FLIP_VERTICAL);
+  SDL_RenderTextureRotated(renderer, texture, &srcRect, &destRect, 0.0, nullptr, flip);
 }
 
 std::optional<ssjson::ISize> Spritesheet::getSize(const std::string &frame) {

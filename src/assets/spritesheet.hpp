@@ -102,7 +102,7 @@ public:
 
   explicit AnimatedSpritesheetPart(Spritesheet* spritesheet, const ssjson::SpritesheetAnimation &animData);
 
-  void render(SDL_Renderer* renderer, float x, float y);
+  void render(SDL_Renderer* renderer, float x, float y, bool flipX = false, bool flipY = false);
   void update(float deltaTime);
 private:
   struct Match {
@@ -132,7 +132,7 @@ public:
 
   void preload() override;
   void use(SDL_Renderer *renderer) override;
-  void renderFrame(SDL_Renderer* renderer, const std::string &frame, float x, float y);
+  void renderFrame(SDL_Renderer* renderer, const std::string &frame, float x, float y, bool flipX = false, bool flipY = false);
   std::shared_ptr<AnimatedSpritesheetPart> animation(const std::string &animation);
   std::shared_ptr<AnimatedSpritesheetPart> createAnimation(const std::string &animation);
   std::optional<ssjson::ISize> getSize(const std::string &frame);
