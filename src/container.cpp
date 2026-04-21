@@ -111,7 +111,7 @@ void Container::handleEvent(const SDL_Event& e) {
   ImGui_ImplSDL3_ProcessEvent(&e);
 #endif
 
-  if (e.type == SDL_WINDOWEVENT && e.window.event == SDL_WINDOWEVENT_RESIZED)
+  if (e.type == SDL_EVENT_WINDOW_RESIZED)
     SDL_GetWindowSize(window, &width, &height);
 
 #if defined (__APPLE__) && defined(__MACH__)
