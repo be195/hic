@@ -53,6 +53,7 @@ public:
   virtual void mouseLeave() {}
 
   void addChild(const std::shared_ptr<BaseComponent>& child);
+  void prependChild(const std::shared_ptr<BaseComponent>& child);
   void removeChild(const std::shared_ptr<BaseComponent>& child);
 
   void iPreMount(Container* cont, BaseComponent* par = nullptr);
@@ -112,6 +113,8 @@ private:
   void triggerMouseLeave();
   void markAbsolutePosDirty() const;
   bool useRenderTarget() const;
+
+  void initChild(const std::shared_ptr<BaseComponent>& child);
 
   std::mutex pendingTasksMutex;
   std::vector<std::function<void()>> pendingTasks;

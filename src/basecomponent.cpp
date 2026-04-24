@@ -24,8 +24,12 @@ BaseComponent::~BaseComponent() {
 }
 
 void BaseComponent::addChild(const std::shared_ptr<BaseComponent>& child) {
-  child->parent = this;
   children.push_back(child);
+  initChild(child);
+}
+
+void BaseComponent::initChild(const std::shared_ptr<BaseComponent>& child) {
+  child->parent = this;
   child->markAbsolutePosDirty();
 
   if (container) {
@@ -36,6 +40,11 @@ void BaseComponent::addChild(const std::shared_ptr<BaseComponent>& child) {
     if (mountedStage >= 2)
       child->iPostMount();
   }
+}
+
+void BaseComponent::prependChild(const std::shared_ptr<BaseComponent>& child) {
+  children.insert(children.begin(), child);
+  initChild(child);
 }
 
 void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
