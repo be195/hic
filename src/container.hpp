@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 #include "assets/audio.hpp"
 #include "assets/manager.hpp"
@@ -64,10 +65,6 @@ public:
   SDL_Renderer* renderer;
   std::unordered_map<std::string, std::shared_ptr<BaseComponent>> roots;
 #if defined(__APPLE__) && defined(__MACH__)
-  // there's a special place in hell for Xcode and its half-assed support for atomics;
-  // it doesn't support atomic shared_ptr at all, so we have to use a mutex to synchronize
-  // access to the root pointer instead. fun!
-#warning "using mutexes instead of atomics here as a workaround"
   std::shared_ptr<BaseComponent> rootPtr;
   std::shared_ptr<BaseComponent> nextPtr;
   mutable std::mutex rootMutex;
@@ -86,8 +83,14 @@ public:
   std::atomic<bool> isInLoop = {false};
   std::atomic<bool> logicalResDirty = {false};
 
+  std::atomic<int> pendingCursor = {-1};
   Cursor currentCursor = Cursor::DEFAULT;
   void updateCursor(Cursor cursor);
+  void applyPendingCursor();
+
+  std::vector<SDL_Event> eventQueue;
+  std::mutex eventQueueMutex;
+  void dispatchEvents();
 };
 
 } // namespace hic
