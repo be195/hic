@@ -103,6 +103,13 @@ void Container::render(const float time) const {
 }
 
 void Container::dispatchEvent(const SDL_Event& e) {
+#ifdef HIC_USE_IMGUI
+  {
+    std::lock_guard lock(imguiEventMutex);
+    imguiEventQueue.push_back(e);
+  }
+#endif
+
 #if defined(__APPLE__) && defined(__MACH__)
   std::lock_guard lock(rootMutex);
   auto root = rootPtr;
@@ -148,6 +155,19 @@ int Container::ctrThreadFunc(void* data) {
 
 void Container::ctrThreadLoop() {
   while (isInLoop.load(std::memory_order_acquire)) {
+
+#ifdef HIC_USE_IMGUI
+    {
+      std::vector<SDL_Event> imguiEvents;
+      {
+        std::lock_guard lock(imguiEventMutex);
+        imguiEvents.swap(imguiEventQueue);
+      }
+      for (const auto& e : imguiEvents)
+        ImGui_ImplSDL3_ProcessEvent(&e);
+    }
+#endif
+
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
@@ -160,12 +180,14 @@ void Container::ctrThreadLoop() {
     if (logicalResDirty.exchange(false, std::memory_order_acq_rel) && lWidth != 0 && lHeight != 0)
       SDL_SetRenderLogicalPresentation(renderer, lWidth, lHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
 
-    if (loading.load(std::memory_order_acquire))
+    if (loading.load(std::memory_order_acquire)) {
+      assetManager->processReady(renderer);
+
       renderLoadingScreen(
         assetManager->getPendingCount(),
         assetManager->getReadyCount()
       );
-    else
+    } else
       render(SDL_GetTicks());
 
 #ifdef HIC_USE_IMGUI
@@ -177,6 +199,7 @@ void Container::ctrThreadLoop() {
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
     SDL_SetRenderLogicalPresentation(renderer, lWidth, lHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
 #endif
+
     SDL_RenderPresent(renderer);
   }
 }
@@ -197,9 +220,6 @@ void Container::startLoop() {
   while (isInLoop.load()) {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
-#ifdef HIC_USE_IMGUI
-      ImGui_ImplSDL3_ProcessEvent(&e);
-#endif
       if (e.type == SDL_EVENT_WINDOW_RESIZED)
         SDL_GetWindowSize(window, &width, &height);
 
@@ -217,7 +237,6 @@ void Container::startLoop() {
       (now - lastCounter) * 1000.0 / SDL_GetPerformanceFrequency()
     );
     lastCounter = now;
-
     const float time = static_cast<float>(SDL_GetTicks());
 
 #if defined(__APPLE__) && defined(__MACH__)
@@ -243,15 +262,13 @@ void Container::startLoop() {
 #endif
 
     if (loading.load(std::memory_order_acquire)) {
-      assetManager->processReady(renderer);
-
-      const int pending  = assetManager->getPendingCount();
-      const int ready    = assetManager->getReadyCount();
-      const bool loading_ = assetManager->isLoading();
+      const int pending = assetManager->getPendingCount();
+      const int readyCount = assetManager->getReadyCount();
+      const bool stillLoading = assetManager->isLoading();
 
       updateLoadingScreen(deltaTime, time);
 
-      if (pending == 0 && ready == 0 && !loading_) {
+      if (pending == 0 && readyCount == 0 && !stillLoading) {
         loading.store(false, std::memory_order_release);
 #if defined(__APPLE__) && defined(__MACH__)
         std::lock_guard lock(rootMutex);
@@ -293,7 +310,6 @@ void Container::updateCursor(const Cursor cursor) {
     case Cursor::TEXT: sdlCursor = SDL_SYSTEM_CURSOR_TEXT; break;
     case Cursor::CROSSHAIR: sdlCursor = SDL_SYSTEM_CURSOR_CROSSHAIR; break;
     case Cursor::WAIT: sdlCursor = SDL_SYSTEM_CURSOR_WAIT; break;
-
     default: sdlCursor = SDL_SYSTEM_CURSOR_DEFAULT; break;
   }
 
