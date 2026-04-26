@@ -183,10 +183,22 @@ void Container::ctrThreadLoop() {
     if (loading.load(std::memory_order_acquire)) {
       assetManager->processReady(renderer);
 
-      renderLoadingScreen(
-        assetManager->getPendingCount(),
-        assetManager->getReadyCount()
-      );
+      const int pending = assetManager->getPendingCount();
+      const int readyCount = assetManager->getReadyCount();
+      const bool stillLoading = assetManager->isLoading();
+
+      renderLoadingScreen(pending, readyCount);
+
+      if (pending == 0 && readyCount == 0 && !stillLoading) {
+        loading.store(false, std::memory_order_release);
+#if defined(__APPLE__) && defined(__MACH__)
+        std::lock_guard lock(rootMutex);
+        if (rootPtr) rootPtr->iPostMount();
+#else
+        if (const auto root = rootPtr.load(std::memory_order_acquire))
+          root->iPostMount();
+#endif
+      }
     } else
       render(SDL_GetTicks());
 
@@ -261,24 +273,9 @@ void Container::startLoop() {
     }
 #endif
 
-    if (loading.load(std::memory_order_acquire)) {
-      const int pending = assetManager->getPendingCount();
-      const int readyCount = assetManager->getReadyCount();
-      const bool stillLoading = assetManager->isLoading();
-
+    if (loading.load(std::memory_order_acquire))
       updateLoadingScreen(deltaTime, time);
-
-      if (pending == 0 && readyCount == 0 && !stillLoading) {
-        loading.store(false, std::memory_order_release);
-#if defined(__APPLE__) && defined(__MACH__)
-        std::lock_guard lock(rootMutex);
-        if (rootPtr) rootPtr->iPostMount();
-#else
-        if (const auto root = rootPtr.load(std::memory_order_acquire))
-          root->iPostMount();
-#endif
-      }
-    } else {
+    else {
       update(deltaTime, time);
 
 #if defined(__APPLE__) && defined(__MACH__)
