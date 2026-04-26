@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include "assets/audio.hpp"
@@ -59,7 +60,8 @@ public:
 
   virtual void update(float deltaTime, float time) const;
   virtual void render(float time) const;
-  virtual void handleEvent(const SDL_Event& e);
+
+  void dispatchEvent(const SDL_Event& e);
 
   SDL_Window* window;
   SDL_Renderer* renderer;
@@ -83,14 +85,8 @@ public:
   std::atomic<bool> isInLoop = {false};
   std::atomic<bool> logicalResDirty = {false};
 
-  std::atomic<int> pendingCursor = {-1};
   Cursor currentCursor = Cursor::DEFAULT;
   void updateCursor(Cursor cursor);
-  void applyPendingCursor();
-
-  std::vector<SDL_Event> eventQueue;
-  std::mutex eventQueueMutex;
-  void dispatchEvents();
 };
 
 } // namespace hic

@@ -2,6 +2,7 @@
 #include "container.hpp"
 #include "assets/shader.hpp"
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -106,35 +107,7 @@ int Container::setLogicalHeight(const int newHeight) {
   return newHeight;
 }
 
-void Container::handleEvent(const SDL_Event& e) {
-#ifdef HIC_USE_IMGUI
-  ImGui_ImplSDL3_ProcessEvent(&e);
-#endif
-
-  if (e.type == SDL_EVENT_WINDOW_RESIZED)
-    SDL_GetWindowSize(window, &width, &height);
-
-  switch (e.type) {
-    case SDL_EVENT_QUIT:
-      if (ctrThread) {
-        haltLoop();
-        SDL_WaitThread(ctrThread, nullptr);
-      }
-      break;
-    default: {
-      std::lock_guard lock(eventQueueMutex);
-      eventQueue.push_back(e);
-    } break;
-  }
-}
-
-void Container::dispatchEvents() {
-  std::vector<SDL_Event> events;
-  {
-    std::lock_guard lock(eventQueueMutex);
-    events.swap(eventQueue);
-  }
-
+void Container::dispatchEvent(const SDL_Event& e) {
 #if defined (__APPLE__) && defined(__MACH__)
   std::lock_guard lock(rootMutex);
   auto root = rootPtr;
@@ -143,55 +116,35 @@ void Container::dispatchEvents() {
 #endif
   if (!root) return;
 
-  for (const auto& e : events) {
-    switch (e.type) {
-      case SDL_EVENT_MOUSE_MOTION:
-      case SDL_EVENT_MOUSE_BUTTON_DOWN:
-      case SDL_EVENT_MOUSE_BUTTON_UP:
-      case SDL_EVENT_MOUSE_WHEEL: {
-        int windowWidth = width;
-        int windowHeight = height;
+  switch (e.type) {
+    case SDL_EVENT_MOUSE_MOTION:
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+    case SDL_EVENT_MOUSE_WHEEL: {
+      const int scaleX = width / lWidth;
+      const int scaleY = height / lHeight;
+      const int scale = std::min(scaleX, scaleY);
 
-        int logicalWidth = lWidth;
-        int logicalHeight = lHeight;
+      const float offsetX = (width  - lWidth  * scale) / 2.0f;
+      const float offsetY = (height - lHeight * scale) / 2.0f;
 
-        int scaleX = windowWidth / logicalWidth;
-        int scaleY = windowHeight / logicalHeight;
+      const float adjustedX = (e.motion.x - offsetX) / scale;
+      const float adjustedY = (e.motion.y - offsetY) / scale;
 
-        int scale = std::min(scaleX, scaleY);
+      Cursor cursor = root->iHandleMouseEvent(e, adjustedX, adjustedY);
+      if (cursor == Cursor::INHERIT) cursor = Cursor::DEFAULT;
+      updateCursor(cursor); // safe: we're on the main thread
+    } break;
 
-        int renderedWidth = logicalWidth * scale;
-        int renderedHeight = logicalHeight * scale;
+    case SDL_EVENT_TEXT_INPUT:
+    case SDL_EVENT_KEY_DOWN:
+    case SDL_EVENT_KEY_UP:
+      // handlers post tasks via postTask; actual mutations run on render thread
+      root->iHandleKeyboardEvent(e);
+      break;
 
-        float offsetX = (windowWidth - renderedWidth) / 2.0f;
-        float offsetY = (windowHeight - renderedHeight) / 2.0f;
-
-        float adjustedX = (e.motion.x - offsetX) / scale;
-        float adjustedY = (e.motion.y - offsetY) / scale;
-
-        Cursor cursor = root->iHandleMouseEvent(e, adjustedX, adjustedY);
-        if (cursor == Cursor::INHERIT)
-          cursor = Cursor::DEFAULT;
-
-        // signal the main thread to apply the cursor change
-        pendingCursor.store(static_cast<int>(cursor), std::memory_order_release);
-      } break;
-
-      case SDL_EVENT_TEXT_INPUT:
-      case SDL_EVENT_KEY_DOWN:
-      case SDL_EVENT_KEY_UP:
-        root->iHandleKeyboardEvent(e);
-        break;
-
-      default: break;
-    }
+    default: break;
   }
-}
-
-void Container::applyPendingCursor() {
-  const int pending = pendingCursor.exchange(-1, std::memory_order_acq_rel);
-  if (pending >= 0)
-    updateCursor(static_cast<Cursor>(pending));
 }
 
 int Container::ctrThreadFunc(void *data) {
@@ -215,16 +168,12 @@ void Container::ctrThreadLoop() {
 #if defined(__APPLE__) && defined(__MACH__)
     {
       std::lock_guard lock(nextMutex);
-
       if (nextPtr) {
         std::lock_guard rlock(rootMutex);
-
         if (const auto root = rootPtr)
           root->iDestroy();
-
         if (nextPtr)
           nextPtr->iPreMount(this);
-
         rootPtr = nextPtr;
         nextPtr = nullptr;
         loading.store(true, std::memory_order_release);
@@ -234,10 +183,8 @@ void Container::ctrThreadLoop() {
     if (auto next = nextPtr.exchange(nullptr, std::memory_order_acq_rel)) {
       if (const auto root = rootPtr.load(std::memory_order_acquire))
         root->iDestroy();
-
       if (next)
         next->iPreMount(this);
-
       rootPtr.store(next, std::memory_order_release);
       loading.store(true, std::memory_order_release);
     }
@@ -268,7 +215,6 @@ void Container::ctrThreadLoop() {
           root->iPostMount();
       }
     } else {
-      dispatchEvents();
       update(deltaTime, time);
       render(time);
     }
@@ -278,10 +224,8 @@ void Container::ctrThreadLoop() {
 
 #ifdef HIC_USE_IMGUI
     ImGui::Render();
-
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
-
     // FUCK!
     SDL_SetRenderLogicalPresentation(renderer, w, h, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
@@ -304,9 +248,21 @@ void Container::startLoop() {
 
   while (isInLoop.load()) {
     SDL_Event e;
-    while (SDL_PollEvent(&e))
-      handleEvent(e);
-    applyPendingCursor();
+    while (SDL_PollEvent(&e)) {
+#ifdef HIC_USE_IMGUI
+      ImGui_ImplSDL3_ProcessEvent(&e);
+#endif
+      if (e.type == SDL_EVENT_WINDOW_RESIZED)
+        SDL_GetWindowSize(window, &width, &height);
+
+      if (e.type == SDL_EVENT_QUIT) {
+        haltLoop();
+        SDL_WaitThread(ctrThread, nullptr);
+        return;
+      }
+
+      dispatchEvent(e);
+    }
     SDL_Delay(1);
   }
 }
@@ -317,27 +273,20 @@ void Container::haltLoop() {
 
 void Container::updateCursor(const Cursor cursor) {
   if (cursor == currentCursor || cursor == Cursor::INHERIT) return;
-
   currentCursor = cursor;
 
   SDL_SystemCursor sdlCursor;
   switch (cursor) {
-    case Cursor::POINTER:
-      sdlCursor = SDL_SYSTEM_CURSOR_POINTER; break;
-    case Cursor::TEXT:
-      sdlCursor = SDL_SYSTEM_CURSOR_TEXT; break;
-    case Cursor::CROSSHAIR:
-      sdlCursor = SDL_SYSTEM_CURSOR_CROSSHAIR; break;
-    case Cursor::WAIT:
-      sdlCursor = SDL_SYSTEM_CURSOR_WAIT; break;
-    default:
-      sdlCursor = SDL_SYSTEM_CURSOR_DEFAULT; break;
+    case Cursor::POINTER:   sdlCursor = SDL_SYSTEM_CURSOR_POINTER;    break;
+    case Cursor::TEXT:      sdlCursor = SDL_SYSTEM_CURSOR_TEXT;       break;
+    case Cursor::CROSSHAIR: sdlCursor = SDL_SYSTEM_CURSOR_CROSSHAIR;  break;
+    case Cursor::WAIT:      sdlCursor = SDL_SYSTEM_CURSOR_WAIT;       break;
+    default:                sdlCursor = SDL_SYSTEM_CURSOR_DEFAULT;    break;
   }
 
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
-  SDL_Cursor* c = SDL_CreateSystemCursor(sdlCursor);
-  SDL_SetCursor(c);
-  currentSDLCursor = c;
+  currentSDLCursor = SDL_CreateSystemCursor(sdlCursor);
+  SDL_SetCursor(currentSDLCursor);
 }
 
 }
