@@ -4,7 +4,6 @@
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <utility>
-#include <vector>
 
 #ifdef HIC_USE_IMGUI
 #include <imgui.h>
@@ -14,7 +13,9 @@
 
 namespace hic {
 
-Container::Container(SDL_Window* window, SDL_Renderer* renderer) : window(window), renderer(renderer) {
+Container::Container(SDL_Window* window, SDL_Renderer* renderer)
+  : window(window), renderer(renderer)
+{
   SDL_GetWindowSize(window, &width, &height);
   assetManager = std::make_unique<Assets::Manager>();
   audioManager = std::make_unique<Audio::Manager>();
@@ -23,7 +24,6 @@ Container::Container(SDL_Window* window, SDL_Renderer* renderer) : window(window
   IMGUI_CHECKVERSION();
   imguiContext = ImGui::CreateContext();
   imguiIo = &ImGui::GetIO();
-
   imguiIo->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   imguiIo->ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 #endif
@@ -34,29 +34,25 @@ Container::~Container() {
     haltLoop();
     SDL_WaitThread(ctrThread, nullptr);
   }
-
 #ifdef HIC_USE_IMGUI
   ImGui::DestroyContext(imguiContext);
   free(imguiIo);
 #endif
-
-#if defined (__APPLE__) && defined(__MACH__)
+#if defined(__APPLE__) && defined(__MACH__)
   {
     std::lock_guard lock(rootMutex);
-    if (rootPtr)
-      rootPtr->iDestroy();
+    if (rootPtr) rootPtr->iDestroy();
   }
 #else
   if (const auto root = rootPtr.load(std::memory_order_acquire))
     root->iDestroy();
 #endif
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
-
   Assets::GPUShader::cleanupTexturePool();
 }
 
-void Container::setRoot(const std::shared_ptr<BaseComponent> &newRoot) {
-#if defined (__APPLE__) && defined(__MACH__)
+void Container::setRoot(const std::shared_ptr<BaseComponent>& newRoot) {
+#if defined(__APPLE__) && defined(__MACH__)
   std::lock_guard lock(nextMutex);
   nextPtr = newRoot;
 #else
@@ -64,35 +60,14 @@ void Container::setRoot(const std::shared_ptr<BaseComponent> &newRoot) {
 #endif
 }
 
-void Container::setRoot(const std::string &name) {
+void Container::setRoot(const std::string& name) {
   if (const auto it = roots.find(name); it != roots.end())
     setRoot(it->second);
 }
 
-void Container::define(const std::string &name, const std::shared_ptr<BaseComponent> &newRoot) {
-  if (!newRoot)
-    return;
+void Container::define(const std::string& name, const std::shared_ptr<BaseComponent>& newRoot) {
+  if (!newRoot) return;
   roots.insert({name, newRoot});
-}
-
-void Container::update(const float deltaTime, const float time) const {
-#if defined (__APPLE__) && defined(__MACH__)
-  std::lock_guard lock(rootMutex);
-  if (const auto root = rootPtr)
-#else
-  if (const auto root = rootPtr.load(std::memory_order_acquire))
-#endif
-    root->iUpdate(deltaTime, time);
-}
-
-void Container::render(const float time) const {
-#if defined (__APPLE__) && defined(__MACH__)
-  std::lock_guard lock(rootMutex);
-  if (const auto root = rootPtr)
-#else
-  if (const auto root = rootPtr.load(std::memory_order_acquire))
-#endif
-    root->iRender(renderer, time, root->boundingRect.pos(), nullptr, { 0, 0 });
 }
 
 int Container::setLogicalWidth(const int newWidth) {
@@ -107,8 +82,28 @@ int Container::setLogicalHeight(const int newHeight) {
   return newHeight;
 }
 
+void Container::update(const float deltaTime, const float time) const {
+#if defined(__APPLE__) && defined(__MACH__)
+  std::lock_guard lock(rootMutex);
+  if (const auto root = rootPtr)
+#else
+  if (const auto root = rootPtr.load(std::memory_order_acquire))
+#endif
+    root->iUpdate(deltaTime, time);
+}
+
+void Container::render(const float time) const {
+#if defined(__APPLE__) && defined(__MACH__)
+  std::lock_guard lock(rootMutex);
+  if (const auto root = rootPtr)
+#else
+  if (const auto root = rootPtr.load(std::memory_order_acquire))
+#endif
+    root->iRender(renderer, time, root->activeRS.rect.pos(), nullptr, {0, 0});
+}
+
 void Container::dispatchEvent(const SDL_Event& e) {
-#if defined (__APPLE__) && defined(__MACH__)
+#if defined(__APPLE__) && defined(__MACH__)
   std::lock_guard lock(rootMutex);
   auto root = rootPtr;
 #else
@@ -121,7 +116,7 @@ void Container::dispatchEvent(const SDL_Event& e) {
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
     case SDL_EVENT_MOUSE_BUTTON_UP:
     case SDL_EVENT_MOUSE_WHEEL: {
-      const int scaleX = width / lWidth;
+      const int scaleX = width  / lWidth;
       const int scaleY = height / lHeight;
       const int scale = std::min(scaleX, scaleY);
 
@@ -133,13 +128,12 @@ void Container::dispatchEvent(const SDL_Event& e) {
 
       Cursor cursor = root->iHandleMouseEvent(e, adjustedX, adjustedY);
       if (cursor == Cursor::INHERIT) cursor = Cursor::DEFAULT;
-      updateCursor(cursor); // safe: we're on the main thread
+      updateCursor(cursor);
     } break;
 
     case SDL_EVENT_TEXT_INPUT:
     case SDL_EVENT_KEY_DOWN:
     case SDL_EVENT_KEY_UP:
-      // handlers post tasks via postTask; actual mutations run on render thread
       root->iHandleKeyboardEvent(e);
       break;
 
@@ -147,9 +141,8 @@ void Container::dispatchEvent(const SDL_Event& e) {
   }
 }
 
-int Container::ctrThreadFunc(void *data) {
-  const auto container = static_cast<Container*>(data);
-  container->ctrThreadLoop();
+int Container::ctrThreadFunc(void* data) {
+  static_cast<Container*>(data)->ctrThreadLoop();
   return 0;
 }
 
@@ -157,70 +150,23 @@ void Container::ctrThreadLoop() {
   while (isInLoop.load(std::memory_order_acquire)) {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
+
 #ifdef HIC_USE_IMGUI
     ImGui_ImplSDLRenderer3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 #endif
+
     if (logicalResDirty.exchange(false, std::memory_order_acq_rel) && lWidth != 0 && lHeight != 0)
       SDL_SetRenderLogicalPresentation(renderer, lWidth, lHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
 
-#if defined(__APPLE__) && defined(__MACH__)
-    {
-      std::lock_guard lock(nextMutex);
-      if (nextPtr) {
-        std::lock_guard rlock(rootMutex);
-        if (const auto root = rootPtr)
-          root->iDestroy();
-        if (nextPtr)
-          nextPtr->iPreMount(this);
-        rootPtr = nextPtr;
-        nextPtr = nullptr;
-        loading.store(true, std::memory_order_release);
-      }
-    }
-#else
-    if (auto next = nextPtr.exchange(nullptr, std::memory_order_acq_rel)) {
-      if (const auto root = rootPtr.load(std::memory_order_acquire))
-        root->iDestroy();
-      if (next)
-        next->iPreMount(this);
-      rootPtr.store(next, std::memory_order_release);
-      loading.store(true, std::memory_order_release);
-    }
-#endif
-
-    const auto nowCounter = SDL_GetPerformanceCounter();
-    const double deltaTime = (nowCounter - lastCounterTime) * 1000 / static_cast<float>(SDL_GetPerformanceFrequency());
-    const auto time = SDL_GetTicks();
-
-    if (loading.load(std::memory_order_acquire)) {
-      assetManager->processReady(renderer);
-
-      const int pending = assetManager->getPendingCount();
-      const int ready = assetManager->getReadyCount();
-      const bool isLoading = assetManager->isLoading();
-
-      updateLoadingScreen(deltaTime, time);
-      renderLoadingScreen(pending, ready);
-
-      if (pending == 0 && ready == 0 && !isLoading) {
-        loading.store(false, std::memory_order_release);
-#if defined(__APPLE__) && defined(__MACH__)
-        std::lock_guard lock(rootMutex);
-        if (const auto root = rootPtr)
-#else
-        if (const auto root = rootPtr.load(std::memory_order_acquire))
-#endif
-          root->iPostMount();
-      }
-    } else {
-      update(deltaTime, time);
-      render(time);
-    }
-
-    lastCounterTime = nowCounter;
-    SDL_Delay(1);
+    if (loading.load(std::memory_order_acquire))
+      renderLoadingScreen(
+        assetManager->getPendingCount(),
+        assetManager->getReadyCount()
+      );
+    else
+      render(SDL_GetTicks());
 
 #ifdef HIC_USE_IMGUI
     ImGui::Render();
@@ -240,11 +186,13 @@ void Container::startLoop() {
   if (!isInLoop.compare_exchange_strong(expected, true))
     return;
 
-  ctrThread = SDL_CreateThread(ctrThreadFunc, "hic::Container<Container>", this);
+  ctrThread = SDL_CreateThread(ctrThreadFunc, "hic::RenderThread", this);
   if (!ctrThread) {
     isInLoop.store(false);
     return;
   }
+
+  Uint64 lastCounter = SDL_GetPerformanceCounter();
 
   while (isInLoop.load()) {
     SDL_Event e;
@@ -263,6 +211,70 @@ void Container::startLoop() {
 
       dispatchEvent(e);
     }
+
+    const Uint64 now = SDL_GetPerformanceCounter();
+    const float deltaTime = static_cast<float>(
+      (now - lastCounter) * 1000.0 / SDL_GetPerformanceFrequency()
+    );
+    lastCounter = now;
+
+    const float time = static_cast<float>(SDL_GetTicks());
+
+#if defined(__APPLE__) && defined(__MACH__)
+    {
+      std::lock_guard lock(nextMutex);
+      if (nextPtr) {
+        std::lock_guard rlock(rootMutex);
+        if (rootPtr) rootPtr->iDestroy();
+        nextPtr->iPreMount(this);
+        rootPtr = nextPtr;
+        nextPtr = nullptr;
+        loading.store(true, std::memory_order_release);
+      }
+    }
+#else
+    if (auto next = nextPtr.exchange(nullptr, std::memory_order_acq_rel)) {
+      if (const auto root = rootPtr.load(std::memory_order_acquire))
+        root->iDestroy();
+      next->iPreMount(this);
+      rootPtr.store(next, std::memory_order_release);
+      loading.store(true, std::memory_order_release);
+    }
+#endif
+
+    if (loading.load(std::memory_order_acquire)) {
+      assetManager->processReady(renderer);
+
+      const int pending  = assetManager->getPendingCount();
+      const int ready    = assetManager->getReadyCount();
+      const bool loading_ = assetManager->isLoading();
+
+      updateLoadingScreen(deltaTime, time);
+
+      if (pending == 0 && ready == 0 && !loading_) {
+        loading.store(false, std::memory_order_release);
+#if defined(__APPLE__) && defined(__MACH__)
+        std::lock_guard lock(rootMutex);
+        if (rootPtr) rootPtr->iPostMount();
+#else
+        if (const auto root = rootPtr.load(std::memory_order_acquire))
+          root->iPostMount();
+#endif
+      }
+    } else {
+      update(deltaTime, time);
+
+#if defined(__APPLE__) && defined(__MACH__)
+      {
+        std::lock_guard lock(rootMutex);
+        if (rootPtr) rootPtr->iSwapRenderState();
+      }
+#else
+      if (const auto root = rootPtr.load(std::memory_order_acquire))
+        root->iSwapRenderState();
+#endif
+    }
+
     SDL_Delay(1);
   }
 }
@@ -277,11 +289,12 @@ void Container::updateCursor(const Cursor cursor) {
 
   SDL_SystemCursor sdlCursor;
   switch (cursor) {
-    case Cursor::POINTER:   sdlCursor = SDL_SYSTEM_CURSOR_POINTER;    break;
-    case Cursor::TEXT:      sdlCursor = SDL_SYSTEM_CURSOR_TEXT;       break;
-    case Cursor::CROSSHAIR: sdlCursor = SDL_SYSTEM_CURSOR_CROSSHAIR;  break;
-    case Cursor::WAIT:      sdlCursor = SDL_SYSTEM_CURSOR_WAIT;       break;
-    default:                sdlCursor = SDL_SYSTEM_CURSOR_DEFAULT;    break;
+    case Cursor::POINTER: sdlCursor = SDL_SYSTEM_CURSOR_POINTER; break;
+    case Cursor::TEXT: sdlCursor = SDL_SYSTEM_CURSOR_TEXT; break;
+    case Cursor::CROSSHAIR: sdlCursor = SDL_SYSTEM_CURSOR_CROSSHAIR; break;
+    case Cursor::WAIT: sdlCursor = SDL_SYSTEM_CURSOR_WAIT; break;
+
+    default: sdlCursor = SDL_SYSTEM_CURSOR_DEFAULT; break;
   }
 
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
@@ -289,4 +302,4 @@ void Container::updateCursor(const Cursor cursor) {
   SDL_SetCursor(currentSDLCursor);
 }
 
-}
+} // namespace hic

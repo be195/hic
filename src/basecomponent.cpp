@@ -1,11 +1,12 @@
 #include "basecomponent.hpp"
 #include "container.hpp"
 #include <algorithm>
-#include <ranges>
+#include <any>
 #include <exception>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <ranges>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -28,20 +29,6 @@ void BaseComponent::addChild(const std::shared_ptr<BaseComponent>& child) {
   initChild(child);
 }
 
-void BaseComponent::initChild(const std::shared_ptr<BaseComponent>& child) {
-  child->parent = this;
-  child->markAbsolutePosDirty();
-
-  if (container) {
-    // we can't predict when it will load the assets that it requires,
-    // so all the resposibility goes to the parent component
-    if (mountedStage >= 1)
-      child->iPreMount(container, this);
-    if (mountedStage >= 2)
-      child->iPostMount();
-  }
-}
-
 void BaseComponent::prependChild(const std::shared_ptr<BaseComponent>& child) {
   children.insert(children.begin(), child);
   initChild(child);
@@ -54,28 +41,29 @@ void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
   }
 }
 
-void BaseComponent::markRenderTarget() {
-  if (!useRenderTarget()) return;
-  dirtyRenderTarget.store(true, std::memory_order_release);
-}
+void BaseComponent::initChild(const std::shared_ptr<BaseComponent>& child) {
+  child->parent = this;
+  child->markAbsolutePosDirty();
 
-bool BaseComponent::useRenderTarget() const {
-  return fps >= 0 && renderTarget;
+  if (container) {
+    if (mountedStage >= 1) child->iPreMount(container, this);
+    if (mountedStage >= 2) child->iPostMount();
+  }
 }
 
 void BaseComponent::iPreMount(Container* cont, BaseComponent* par) {
   const bool firstMount = mountedStage == 0;
   container = cont;
-  parent = par;
+  parent    = par;
   destroyed = false;
 
   logger.info("mounting component (stage 1)");
 
   if (firstMount) {
-    boundingRect.change += [this](const char* prop, float old, float nw) {
-      this->markRenderTarget();
-      this->markAbsolutePosDirty();
-      this->checkMouse();
+    boundingRect.change += [this](const char*, float, float) {
+      markRenderTarget();
+      markAbsolutePosDirty();
+      checkMouse();
     };
   }
 
@@ -94,9 +82,33 @@ void BaseComponent::iPostMount() {
 
   mountedStage = 2;
   if (fps >= 0)
-    dirtyRenderTarget.store(true, std::memory_order_release);
+    pendingDirtyRenderTarget = true;
   mounted();
   requestRender();
+}
+
+void BaseComponent::iDestroy() {
+  if (destroyed) return;
+  logger.info("Destroying component");
+
+  for (const auto& child : children)
+    child->iDestroy();
+
+  if (renderTarget) {
+    SDL_DestroyTexture(renderTarget);
+    renderTarget = nullptr;
+  }
+
+  clearAnimations();
+  destroy();
+
+  parent = nullptr;
+  container = nullptr;
+  destroyed = true;
+}
+
+void BaseComponent::markRenderTarget() {
+  pendingDirtyRenderTarget = true;
 }
 
 void BaseComponent::iUpdate(float deltaTime, const float time) {
@@ -121,8 +133,9 @@ void BaseComponent::iUpdate(float deltaTime, const float time) {
 
     if (accumulatedTime >= frameTime * maxFrames)
       accumulatedTime = 0.0f;
-  } else
+  } else {
     update(deltaTime, time);
+  }
 
   for (const auto& child : children) {
     try {
@@ -134,77 +147,66 @@ void BaseComponent::iUpdate(float deltaTime, const float time) {
   }
 }
 
-void BaseComponent::checkMouse() {
-  if (mouseInside && !isLastMousePosInvalid()) {
-    if (!boundingRect.contains(lastMousePos.x, lastMousePos.y))
-      triggerMouseLeave();
-  } else if (parent != nullptr) {
-    // ReSharper disable once CppTooWideScopeInitStatement
-    const auto relativePos = parent->amIOverlappingWithMouse(this);
-    if (relativePos != nullptr) {
-      lastMousePos.x = relativePos->x;
-      lastMousePos.y = relativePos->y;
-      triggerMouseEnter();
-    }
-  }
-}
+void BaseComponent::iSwapRenderState() {
+  pendingRS.rect = boundingRect;
+  pendingRS.active = active.load(std::memory_order_relaxed);
+  pendingRS.clip = clip;
+  pendingRS.scale = scale;
+  pendingRS.fps = fps;
+  pendingRS.needsRender = pendingNeedsRender;
+  pendingRS.dirtyRenderTarget = pendingDirtyRenderTarget;
+  pendingRS.renderData = buildRenderData();
 
-bool BaseComponent::isLastMousePosInvalid() const {
-  return lastMousePos.x == -1 && lastMousePos.y == -1;
-}
 
-Position* BaseComponent::amIOverlappingWithMouse(const BaseComponent* component) {
-  const float relX = lastMousePos.x - boundingRect.x();
-  // ReSharper disable once CppTooWideScopeInitStatement
-  const float relY = lastMousePos.y - boundingRect.y();
+  pendingNeedsRender = false;
+  pendingDirtyRenderTarget = false;
 
-  if (component->boundingRect.contains(relX, relY)) {
-    overlappingRes.x = relX;
-    overlappingRes.y = relY;
-    return &overlappingRes;
-  }
-
-  return nullptr;
-}
-
-void BaseComponent::postTask(std::function<void()> func) {
-  std::lock_guard lock(pendingTasksMutex);
-  pendingTasks.push_back(std::move(func));
-}
-
-void BaseComponent::drainPendingTasks() {
-  std::vector<std::function<void()>> tasksToExecute;
   {
-    std::lock_guard lock(pendingTasksMutex);
-    tasksToExecute.swap(pendingTasks);
+    std::lock_guard lock(rsSwapMutex);
+    std::swap(pendingRS, activeRS);
   }
-  for (const auto& task : tasksToExecute)
-    task();
 
-  postTaskDrain();
+  for (const auto& child : children)
+    child->iSwapRenderState();
 }
 
-void BaseComponent::iRender(SDL_Renderer* renderer, const float time, const Position absPos, BaseComponent* lastClipParent, const Position lastClipAbsPos) {
-  if (!active.load(std::memory_order_acquire)) return;
+bool BaseComponent::useRenderTarget(const RenderState& rs) const {
+  return rs.fps >= 0 && renderTarget;
+}
 
-  SDL_Rect viewport = { 0, 0, 0, 0 };
-  SDL_Rect parentClip;
+void BaseComponent::iRender(
+  SDL_Renderer* renderer,
+  const float time,
+  const Position absPos,
+  BaseComponent* lastClipParent,
+  const Position lastClipAbsPos
+) {
+  RenderState rs;
+  {
+    std::lock_guard lock(rsSwapMutex);
+    rs = activeRS;
+  }
+
+  if (!rs.active) return;
+
+  SDL_Rect viewport = {0, 0, 0, 0};
   SDL_GetRenderViewport(renderer, &viewport);
 
-  if (clip)
+  SDL_Rect parentClip;
+  if (rs.clip)
     SDL_GetRenderClipRect(renderer, &parentClip);
 
   const int x = static_cast<int>(absPos.x);
   const int y = static_cast<int>(absPos.y);
-  const int w = static_cast<int>(boundingRect.w());
-  const int h = static_cast<int>(boundingRect.h());
+  const int w = static_cast<int>(rs.rect.w());
+  const int h = static_cast<int>(rs.rect.h());
 
   const SDL_Rect newViewport = {x, y, w, h};
   SDL_SetRenderViewport(renderer, &newViewport);
 
   SDL_Rect currentClipRect = {0, 0, w, h};
 
-  if (clip) {
+  if (rs.clip) {
     if (lastClipParent) {
       const int offsetX = static_cast<int>(absPos.x - lastClipAbsPos.x);
       const int offsetY = static_cast<int>(absPos.y - lastClipAbsPos.y);
@@ -220,113 +222,115 @@ void BaseComponent::iRender(SDL_Renderer* renderer, const float time, const Posi
     SDL_SetRenderClipRect(renderer, &currentClipRect);
   }
 
-  if (dirtyRenderTarget.exchange(false, std::memory_order_acq_rel)) {
+  if (rs.dirtyRenderTarget) {
     if (renderTarget) SDL_DestroyTexture(renderTarget);
-
-    renderTarget = SDL_CreateTexture(renderer,
+    renderTarget = SDL_CreateTexture(
+      renderer,
       SDL_PIXELFORMAT_RGBA32,
       SDL_TEXTUREACCESS_TARGET,
-      boundingRect.w(), boundingRect.h()
+      w, h
     );
     if (!renderTarget)
-      logger.error("failed to create render target texture", SDL_GetError());
+      logger.error("failed to create render target texture: ", SDL_GetError());
     else
       SDL_SetTextureScaleMode(renderTarget, SDL_SCALEMODE_NEAREST);
-    requestRender();
   }
 
-  const auto useRenderTargetB = useRenderTarget();
-  if (needsRender.exchange(false, std::memory_order_acq_rel) || fps == -1) {
+  const bool useRT = useRenderTarget(rs);
+
+  if (rs.needsRender || rs.fps == -1) {
     SDL_Texture* previousTarget = SDL_GetRenderTarget(renderer);
-    if (useRenderTargetB) {
+
+    if (useRT) {
       SDL_SetRenderTarget(renderer, renderTarget);
       SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
       SDL_RenderClear(renderer);
       SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     }
-    render(renderer, time);
+
+    draw(renderer, time, rs.renderData);
 
     for (const auto& child : children) {
       try {
-        // ReSharper disable once CppTooWideScopeInitStatement
-        Rectangle c = child->boundingRect;
+        RenderState childRS;
+        {
+          std::lock_guard lock(child->rsSwapMutex);
+          childRS = child->activeRS;
+        }
+
         SDL_Rect childRect = {
-          static_cast<int>(c.x()),
-          static_cast<int>(c.y()),
-          static_cast<int>(c.w()),
-          static_cast<int>(c.h())
+          static_cast<int>(childRS.rect.x()),
+          static_cast<int>(childRS.rect.y()),
+          static_cast<int>(childRS.rect.w()),
+          static_cast<int>(childRS.rect.h())
         };
 
-        if (!clip || SDL_HasRectIntersection(&childRect, &currentClipRect)) {
-          // TODO: absPos could be stored and shared for O(1) access instead of being calculated for each child (see getAbsolutePosition)
-          const Position childAbsPos = { absPos.x + c.x(), absPos.y + c.y() };
-          if (clip)
+        if (!rs.clip || SDL_HasRectIntersection(&childRect, &currentClipRect)) {
+          const Position childAbsPos = {
+            absPos.x + childRS.rect.x(),
+            absPos.y + childRS.rect.y()
+          };
+          if (rs.clip)
             child->iRender(renderer, time, childAbsPos, this, absPos);
           else
             child->iRender(renderer, time, childAbsPos, lastClipParent, lastClipAbsPos);
         }
       } catch (const std::exception& e) {
         logger.error("Child threw a render error: ", e.what());
-        child->active = false;
       }
     }
 
-    postComponentRender(renderer, time);
-    if (useRenderTargetB)
+    postDraw(renderer, time, rs.renderData);
+
+    if (useRT)
       SDL_SetRenderTarget(renderer, previousTarget);
   }
 
-  if (useRenderTargetB)
+  if (useRT)
     SDL_RenderTexture(renderer, renderTarget, nullptr, nullptr);
 
   SDL_SetRenderViewport(renderer, &viewport);
-  if (clip)
+  if (rs.clip)
     SDL_SetRenderClipRect(renderer, &parentClip);
 }
 
-void BaseComponent::iDestroy() {
-  if (destroyed) return;
-  logger.info("Destroying component");
+void BaseComponent::postTask(std::function<void()> func) {
+  std::lock_guard lock(pendingTasksMutex);
+  pendingTasks.push_back(std::move(func));
+}
 
-  for (const auto& child : children)
-    child->iDestroy();
-
-  if (renderTarget)
-    SDL_DestroyTexture(renderTarget);
-
-  clearAnimations();
-  destroy();
-
-  parent = nullptr;
-  container = nullptr;
-  destroyed = true;
+void BaseComponent::drainPendingTasks() {
+  std::vector<std::function<void()>> tasksToExecute;
+  {
+    std::lock_guard lock(pendingTasksMutex);
+    tasksToExecute.swap(pendingTasks);
+  }
+  for (const auto& task : tasksToExecute)
+    task();
+  postTaskDrain();
 }
 
 Cursor BaseComponent::iHandleMouseEvent(const SDL_Event& e, float x, float y) {
   if (!active.load(std::memory_order_acquire)) return Cursor::INHERIT;
 
   lastMousePos = {x, y};
-
   x -= boundingRect.x();
   y -= boundingRect.y();
-#ifdef HIC_DEBUG_MOUSE
-  logger.debug("mouse move:", x, y);
-#endif
 
   triggerMouseEnter();
 
   auto setCursor = Cursor::INHERIT;
 
-  for (const auto & child : std::ranges::reverse_view(children)) {
+  for (const auto& child : std::ranges::reverse_view(children)) {
     if (Rectangle& c = child->boundingRect; c.contains(x, y)) {
-      // ReSharper disable once CppTooWideScopeInitStatement
       const Cursor childCursor = child->iHandleMouseEvent(e, x, y);
       if (childCursor != Cursor::INHERIT && e.type != SDL_EVENT_MOUSE_WHEEL) {
         setCursor = childCursor;
         break;
       }
-    } else
+    } else {
       child->triggerMouseLeave();
+    }
   }
 
   if (setCursor == Cursor::INHERIT)
@@ -335,57 +339,48 @@ Cursor BaseComponent::iHandleMouseEvent(const SDL_Event& e, float x, float y) {
   return setCursor;
 }
 
-bool BaseComponent::iHandleKeyboardEvent(const SDL_Event &e) {
+bool BaseComponent::iHandleKeyboardEvent(const SDL_Event& e) {
   if (!active.load(std::memory_order_acquire)) return false;
 
-  for (const auto & child : std::ranges::reverse_view(children))
+  for (const auto& child : std::ranges::reverse_view(children))
     if (child->iHandleKeyboardEvent(e))
       return true;
 
   return handleKeyboardEvent(e);
 }
 
-bool BaseComponent::collidingWith(const BaseComponent& other, const bool absolute) const {
-  if (!absolute && parent != other.parent)
-    throw std::runtime_error("components must be on the same plane for relative collision check");
-
-  const Rectangle r1 = absolute ?
-    Rectangle(this->getAbsolutePosition().x,
-      this->getAbsolutePosition().y,
-      boundingRect.w(), boundingRect.h()) : boundingRect;
-
-  const Rectangle r2 = absolute ?
-    Rectangle(other.getAbsolutePosition().x,
-      other.getAbsolutePosition().y,
-      other.boundingRect.w(), other.boundingRect.h()) : other.boundingRect;
-
-  return r1.overlaps(r2);
+void BaseComponent::checkMouse() {
+  if (mouseInside && !isLastMousePosInvalid()) {
+    if (!boundingRect.contains(lastMousePos.x, lastMousePos.y))
+      triggerMouseLeave();
+  } else if (parent != nullptr) {
+    const auto relativePos = parent->amIOverlappingWithMouse(this);
+    if (relativePos != nullptr) {
+      lastMousePos.x = relativePos->x;
+      lastMousePos.y = relativePos->y;
+      triggerMouseEnter();
+    }
+  }
 }
 
-Position BaseComponent::getAbsolutePosition() const {
-  if (absolutePosDirty) {
-    float absX = boundingRect.x();
-    float absY = boundingRect.y();
+bool BaseComponent::isLastMousePosInvalid() const {
+  return lastMousePos.x == -1 && lastMousePos.y == -1;
+}
 
-    const BaseComponent* p = parent;
-    while (p) {
-      absX += p->boundingRect.x();
-      absY += p->boundingRect.y();
-      p = p->parent;
-    }
+Position* BaseComponent::amIOverlappingWithMouse(const BaseComponent* component) {
+  const float relX = lastMousePos.x - boundingRect.x();
+  const float relY = lastMousePos.y - boundingRect.y();
 
-    cachedAbsolutePos = { absX, absY };
-    absolutePosDirty = false;
+  if (component->boundingRect.contains(relX, relY)) {
+    overlappingRes.x = relX;
+    overlappingRes.y = relY;
+    return &overlappingRes;
   }
-
-  return cachedAbsolutePos;
+  return nullptr;
 }
 
 void BaseComponent::triggerMouseEnter() {
   if (!mouseInside) {
-#ifdef HIC_DEBUG_MOUSE
-    logger.debug("triggerMouseEnter()");
-#endif
     mouseInside = true;
     mouseEnter();
   }
@@ -393,21 +388,48 @@ void BaseComponent::triggerMouseEnter() {
 
 void BaseComponent::triggerMouseLeave() {
   if (mouseInside) {
-#ifdef HIC_DEBUG_MOUSE
-    logger.debug("triggerMouseLeave()");
-#endif
     mouseInside = false;
     mouseLeave();
-
-    for (const auto & child : children)
+    for (const auto& child : children)
       child->triggerMouseLeave();
   }
+}
+
+Position BaseComponent::getAbsolutePosition() const {
+  if (absolutePosDirty) {
+    float absX = boundingRect.x();
+    float absY = boundingRect.y();
+    const BaseComponent* p = parent;
+    while (p) {
+      absX += p->boundingRect.x();
+      absY += p->boundingRect.y();
+      p = p->parent;
+    }
+    cachedAbsolutePos = {absX, absY};
+    absolutePosDirty = false;
+  }
+  return cachedAbsolutePos;
 }
 
 void BaseComponent::markAbsolutePosDirty() const {
   absolutePosDirty = true;
   for (const auto& child : children)
     child->markAbsolutePosDirty();
+}
+
+bool BaseComponent::collidingWith(const BaseComponent& other, const bool absolute) const {
+  if (!absolute && parent != other.parent)
+    throw std::runtime_error("components must be on the same plane for relative collision check");
+
+  const Rectangle r1 = absolute
+    ? Rectangle(getAbsolutePosition().x, getAbsolutePosition().y, boundingRect.w(), boundingRect.h())
+    : boundingRect;
+
+  const Rectangle r2 = absolute
+    ? Rectangle(other.getAbsolutePosition().x, other.getAbsolutePosition().y, other.boundingRect.w(), other.boundingRect.h())
+    : other.boundingRect;
+
+  return r1.overlaps(r2);
 }
 
 } // namespace hic
