@@ -315,6 +315,8 @@ void GPUShader::bindBuffers() const {
 SDL_Mutex* GPUShader::texturePoolMutex = SDL_CreateMutex();
 std::vector<GPUShader::TextureInfo*> GPUShader::texturePool;
 GPUShader::TextureInfo* GPUShader::acquireBridgeTexture(SDL_Renderer* r) {
+  if (!texturePoolMutex) return nullptr;
+
   SDL_LockMutex(texturePoolMutex);
   if (!texturePool.empty()) {
     TextureInfo* info = texturePool.back();
@@ -330,6 +332,12 @@ GPUShader::TextureInfo* GPUShader::acquireBridgeTexture(SDL_Renderer* r) {
     SDL_TEXTUREACCESS_TARGET,
     HIC_SHADER_ATLAS_SIZE, HIC_SHADER_ATLAS_SIZE
   );
+
+  if (!tex) {
+    HICL("static GPUShader").error("Failed to create bridge texture:", SDL_GetError());
+    return nullptr;
+  }
+
   SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_NEAREST);
   SDL_SetRenderTarget(r, tex);
   SDL_RenderClear(r);
@@ -354,6 +362,7 @@ GPUShader::TextureInfo* GPUShader::acquireBridgeTexture(SDL_Renderer* r) {
 }
 
 void GPUShader::releaseBridgeTexture(TextureInfo* info) {
+  if (!info) return;
   if (!texturePoolMutex) {
     delete info;
     return;
@@ -364,6 +373,8 @@ void GPUShader::releaseBridgeTexture(TextureInfo* info) {
 }
 
 void GPUShader::cleanupTexturePool() {
+  if (!texturePoolMutex) return;
+
   SDL_LockMutex(texturePoolMutex);
 
   for (const auto& info : texturePool)
@@ -376,6 +387,8 @@ void GPUShader::cleanupTexturePool() {
 }
 
 void GPUShader::createDefaultSampler() {
+  if (!device) return;
+
   SDL_GPUSamplerCreateInfo samplerInfo{};
   samplerInfo.min_filter = SDL_GPU_FILTER_NEAREST;
   samplerInfo.mag_filter = SDL_GPU_FILTER_NEAREST;
@@ -391,15 +404,23 @@ void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height)
   auto* const effectivePipeline = parent ? parent->pipeline : pipeline;
   auto* const effectiveDevice   = parent ? parent->device   : device;
 
-  if (!effectivePipeline) return;
+  if (!effectivePipeline || !effectiveDevice) return;
   if (!bridgeTextureInfo) initBridge(renderer);
 
-  activeRenderer = renderer;
-  if (!bridgeTextureInfo) return;
+  if (!bridgeTextureInfo) {
+    HICL("GPUShader").error("failed to initialize bridge texture");
+    return;
+  }
 
+  activeRenderer = renderer;
   SDL_FlushRenderer(renderer);
 
   commandBuffer = SDL_AcquireGPUCommandBuffer(effectiveDevice);
+  if (!commandBuffer) {
+    HICL("GPUShader").error("failed to acquire GPU command buffer");
+    activeRenderer = nullptr;
+    return;
+  }
 
   SDL_GPUColorTargetInfo colorTarget{};
   colorTarget.texture = bridgeTextureInfo->gpuHandle;
@@ -408,6 +429,14 @@ void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height)
   colorTarget.store_op = SDL_GPU_STOREOP_STORE;
 
   renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1, nullptr);
+  if (!renderPass) {
+    HICL("GPUShader").error("failed to begin GPU render pass");
+    SDL_SubmitGPUCommandBuffer(commandBuffer);
+    commandBuffer = nullptr;
+    activeRenderer = nullptr;
+    return;
+  }
+
   SDL_BindGPUGraphicsPipeline(renderPass, effectivePipeline);
 }
 
@@ -417,12 +446,14 @@ void GPUShader::end() {
     renderPass = nullptr;
   }
 
+  bool submitted = false;
   if (commandBuffer) {
     SDL_SubmitGPUCommandBuffer(commandBuffer);
     commandBuffer = nullptr;
+    submitted = true;
   }
 
-  if (bridgeTextureInfo)
+  if (submitted && bridgeTextureInfo && activeRenderer)
     SDL_RenderTexture(activeRenderer, bridgeTextureInfo->bridgeTexture, nullptr, nullptr);
 
   activeRenderer = nullptr;

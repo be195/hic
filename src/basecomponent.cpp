@@ -25,20 +25,31 @@ BaseComponent::~BaseComponent() {
 }
 
 void BaseComponent::addChild(const std::shared_ptr<BaseComponent>& child) {
-  children.push_back(child);
+  {
+    std::lock_guard lock(childrenMutex);
+    children.push_back(child);
+  }
   initChild(child);
 }
 
 void BaseComponent::prependChild(const std::shared_ptr<BaseComponent>& child) {
-  children.insert(children.begin(), child);
+  {
+    std::lock_guard lock(childrenMutex);
+    children.insert(children.begin(), child);
+  }
   initChild(child);
 }
 
 void BaseComponent::removeChild(const std::shared_ptr<BaseComponent>& child) {
-  if (const auto it = std::ranges::find(children, child); it != children.end()) {
-    (*it)->iDestroy();
-    children.erase(it);
+  std::shared_ptr<BaseComponent> childToDestroy = nullptr;
+  {
+    std::lock_guard lock(childrenMutex);
+    if (const auto it = std::ranges::find(children, child); it != children.end()) {
+      childToDestroy = *it;
+      children.erase(it);
+    }
   }
+  if (childToDestroy) childToDestroy->iDestroy();
 }
 
 void BaseComponent::initChild(const std::shared_ptr<BaseComponent>& child) {
@@ -71,13 +82,24 @@ void BaseComponent::iPreMount(Container* cont, BaseComponent* par) {
   if (firstMount) preload();
   premounted();
 
-  for (const auto& child : children)
+  std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
+  {
+    std::lock_guard lock(childrenMutex);
+    childrenCopy = children;
+  }
+  for (const auto& child : childrenCopy)
     child->iPreMount(container, this);
 }
 
 void BaseComponent::iPostMount() {
   logger.info("mounting component (stage 2)");
-  for (const auto& child : children)
+  
+  std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
+  {
+    std::lock_guard lock(childrenMutex);
+    childrenCopy = children;
+  }
+  for (const auto& child : childrenCopy)
     child->iPostMount();
 
   mountedStage = 2;
@@ -91,7 +113,14 @@ void BaseComponent::iDestroy() {
   if (destroyed) return;
   logger.info("Destroying component");
 
-  for (const auto& child : children)
+  std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
+  {
+    std::lock_guard lock(childrenMutex);
+    childrenCopy = std::move(children);
+    children.clear();
+  }
+
+  for (const auto& child : childrenCopy)
     child->iDestroy();
 
   if (renderTarget) {
@@ -137,7 +166,13 @@ void BaseComponent::iUpdate(float deltaTime, const float time) {
     update(deltaTime, time);
   }
 
-  for (const auto& child : children) {
+  std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
+  {
+    std::lock_guard lock(childrenMutex);
+    childrenCopy = children;
+  }
+
+  for (const auto& child : childrenCopy) {
     try {
       child->iUpdate(deltaTime, time);
     } catch (const std::exception& e) {
@@ -166,7 +201,13 @@ void BaseComponent::iSwapRenderState() {
     std::swap(pendingRS, activeRS);
   }
 
-  for (const auto& child : children)
+  std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
+  {
+    std::lock_guard lock(childrenMutex);
+    childrenCopy = children;
+  }
+
+  for (const auto& child : childrenCopy)
     child->iSwapRenderState();
 }
 
@@ -250,7 +291,13 @@ void BaseComponent::iRender(
 
     draw(renderer, time, rs.renderData);
 
-    for (const auto& child : children) {
+    std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
+    {
+      std::lock_guard lock(childrenMutex);
+      childrenCopy = children;
+    }
+
+    for (const auto& child : childrenCopy) {
       try {
         RenderState childRS;
         {
@@ -321,7 +368,13 @@ Cursor BaseComponent::iHandleMouseEvent(const SDL_Event& e, float x, float y) {
 
   auto setCursor = Cursor::INHERIT;
 
-  for (const auto& child : std::ranges::reverse_view(children)) {
+  std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
+  {
+    std::lock_guard lock(childrenMutex);
+    childrenCopy = children;
+  }
+
+  for (const auto& child : std::ranges::reverse_view(childrenCopy)) {
     if (Rectangle& c = child->boundingRect; c.contains(x, y)) {
       const Cursor childCursor = child->iHandleMouseEvent(e, x, y);
       if (childCursor != Cursor::INHERIT && e.type != SDL_EVENT_MOUSE_WHEEL) {
@@ -342,7 +395,13 @@ Cursor BaseComponent::iHandleMouseEvent(const SDL_Event& e, float x, float y) {
 bool BaseComponent::iHandleKeyboardEvent(const SDL_Event& e) {
   if (!active.load(std::memory_order_acquire)) return false;
 
-  for (const auto& child : std::ranges::reverse_view(children))
+  std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
+  {
+    std::lock_guard lock(childrenMutex);
+    childrenCopy = children;
+  }
+
+  for (const auto& child : std::ranges::reverse_view(childrenCopy))
     if (child->iHandleKeyboardEvent(e))
       return true;
 
@@ -390,7 +449,13 @@ void BaseComponent::triggerMouseLeave() {
   if (mouseInside) {
     mouseInside = false;
     mouseLeave();
-    for (const auto& child : children)
+
+    std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
+    {
+      std::lock_guard lock(childrenMutex);
+      childrenCopy = children;
+    }
+    for (const auto& child : childrenCopy)
       child->triggerMouseLeave();
   }
 }
@@ -413,7 +478,13 @@ Position BaseComponent::getAbsolutePosition() const {
 
 void BaseComponent::markAbsolutePosDirty() const {
   absolutePosDirty = true;
-  for (const auto& child : children)
+  
+  std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
+  {
+    std::lock_guard lock(childrenMutex);
+    childrenCopy = children;
+  }
+  for (const auto& child : childrenCopy)
     child->markAbsolutePosDirty();
 }
 

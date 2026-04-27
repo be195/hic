@@ -104,6 +104,7 @@ protected:
   Container* container = nullptr;
   BaseComponent* parent = nullptr;
   std::vector<std::shared_ptr<BaseComponent>> children;
+  mutable std::recursive_mutex childrenMutex;
 
   Position* amIOverlappingWithMouse(const BaseComponent* component);
   void checkMouse();
