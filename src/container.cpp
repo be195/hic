@@ -13,9 +13,70 @@
 
 namespace hic {
 
+void GPUGC::enqueue(SDL_GPUDevice* device, SDL_GPUBuffer* buffer) {
+  if (!buffer) return;
+  std::lock_guard lock(mutex);
+  resources.push_back({ Resource::BUFFER, device, buffer });
+}
+
+void GPUGC::enqueue(SDL_GPUDevice* device, SDL_GPUTexture* texture) {
+  if (!texture) return;
+  std::lock_guard lock(mutex);
+  resources.push_back({ Resource::TEXTURE, device, texture });
+}
+
+void GPUGC::enqueue(SDL_GPUDevice* device, SDL_GPUSampler* sampler) {
+  if (!sampler) return;
+  std::lock_guard lock(mutex);
+  resources.push_back({ Resource::SAMPLER, device, sampler });
+}
+
+void GPUGC::enqueue(SDL_GPUDevice* device, SDL_GPUGraphicsPipeline* pipeline) {
+  if (!pipeline) return;
+  std::lock_guard lock(mutex);
+  resources.push_back({ Resource::PIPELINE, device, pipeline });
+}
+
+void GPUGC::enqueue(SDL_GPUDevice* device, SDL_GPUShader* shader) {
+  if (!shader) return;
+  std::lock_guard lock(mutex);
+  resources.push_back({ Resource::SHADER, device, shader });
+}
+
+void GPUGC::enqueue(SDL_GPUDevice* device, SDL_GPUTransferBuffer* transferBuffer) {
+  if (!transferBuffer) return;
+  std::lock_guard lock(mutex);
+  resources.push_back({ Resource::TRANSFER_BUFFER, device, transferBuffer });
+}
+
+void GPUGC::collect() {
+  std::vector<Resource> toDelete;
+  {
+    std::lock_guard lock(mutex);
+    if (resources.empty()) return;
+    toDelete.swap(resources);
+  }
+
+  for (const auto& res : toDelete) {
+    switch (res.type) {
+      case Resource::BUFFER:          SDL_ReleaseGPUBuffer(res.device, static_cast<SDL_GPUBuffer*>(res.handle)); break;
+      case Resource::TEXTURE:         SDL_ReleaseGPUTexture(res.device, static_cast<SDL_GPUTexture*>(res.handle)); break;
+      case Resource::SAMPLER:         SDL_ReleaseGPUSampler(res.device, static_cast<SDL_GPUSampler*>(res.handle)); break;
+      case Resource::PIPELINE:        SDL_ReleaseGPUGraphicsPipeline(res.device, static_cast<SDL_GPUGraphicsPipeline*>(res.handle)); break;
+      case Resource::SHADER:          SDL_ReleaseGPUShader(res.device, static_cast<SDL_GPUShader*>(res.handle)); break;
+      case Resource::TRANSFER_BUFFER: SDL_ReleaseGPUTransferBuffer(res.device, static_cast<SDL_GPUTransferBuffer*>(res.handle)); break;
+    }
+  }
+}
+
+void GPUGC::collectAll() {
+  collect();
+}
+
 Container::Container(SDL_Window* window, SDL_Renderer* renderer)
   : window(window), renderer(renderer)
 {
+  GPUGC::makeCurrent(&gc);
   SDL_GetWindowSize(window, &width, &height);
   assetManager = std::make_unique<Assets::Manager>();
   audioManager = std::make_unique<Audio::Manager>();
@@ -48,6 +109,8 @@ Container::~Container() {
 #endif
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
   Assets::GPUShader::cleanupTexturePool();
+  gc.collectAll();
+  GPUGC::makeCurrent(nullptr);
 }
 
 void Container::setRoot(const std::shared_ptr<BaseComponent>& newRoot) {
@@ -162,6 +225,7 @@ int Container::ctrThreadFunc(void* data) {
 
 void Container::ctrThreadLoop() {
   while (isInLoop.load(std::memory_order_acquire)) {
+    gc.collect();
 
 #ifdef HIC_USE_IMGUI
     {

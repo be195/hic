@@ -29,13 +29,20 @@ GPUShader::~GPUShader() {
   if (bridgeTextureInfo)
     releaseBridgeTexture(bridgeTextureInfo);
 
-  // GPU resources are owned by the original (non-instance) shader; never release them here
-  // when this object is a per-instance clone backed by a parent.
+  // GPU resources are owned by the original (non-instance) shader; enqueuing them in GC
+  // ensures they are not released while still in use by the render thread.
   if (!parent && device) {
-    if (defaultSampler) SDL_ReleaseGPUSampler(device, defaultSampler);
-    if (pipeline) SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
-    if (vertexBuffer) SDL_ReleaseGPUBuffer(device, vertexBuffer);
-    if (indexBuffer) SDL_ReleaseGPUBuffer(device, indexBuffer);
+    if (auto gc = GPUGC::get()) {
+      if (defaultSampler) gc->enqueue(device, defaultSampler);
+      if (pipeline)       gc->enqueue(device, pipeline);
+      if (vertexBuffer)   gc->enqueue(device, vertexBuffer);
+      if (indexBuffer)    gc->enqueue(device, indexBuffer);
+    } else {
+      if (defaultSampler) SDL_ReleaseGPUSampler(device, defaultSampler);
+      if (pipeline)       SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
+      if (vertexBuffer)   SDL_ReleaseGPUBuffer(device, vertexBuffer);
+      if (indexBuffer)    SDL_ReleaseGPUBuffer(device, indexBuffer);
+    }
   }
 }
 

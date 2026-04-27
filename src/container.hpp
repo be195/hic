@@ -18,6 +18,33 @@
 
 namespace hic {
 
+class HIC_API GPUGC {
+public:
+  void enqueue(SDL_GPUDevice* device, SDL_GPUBuffer* buffer);
+  void enqueue(SDL_GPUDevice* device, SDL_GPUTexture* texture);
+  void enqueue(SDL_GPUDevice* device, SDL_GPUSampler* sampler);
+  void enqueue(SDL_GPUDevice* device, SDL_GPUGraphicsPipeline* pipeline);
+  void enqueue(SDL_GPUDevice* device, SDL_GPUShader* shader);
+  void enqueue(SDL_GPUDevice* device, SDL_GPUTransferBuffer* transferBuffer);
+
+  void collect();
+  void collectAll();
+
+  static GPUGC* get() { return current; }
+  static void makeCurrent(GPUGC* gc) { current = gc; }
+
+private:
+  struct Resource {
+    enum Type { BUFFER, TEXTURE, SAMPLER, PIPELINE, SHADER, TRANSFER_BUFFER } type;
+    SDL_GPUDevice* device;
+    void* handle;
+  };
+
+  std::vector<Resource> resources;
+  std::mutex mutex;
+  static inline GPUGC* current = nullptr;
+};
+
 class HIC_API Container {
 public:
   Container(SDL_Window* window, SDL_Renderer* renderer);
@@ -50,6 +77,7 @@ public:
 
   Assets::Manager* getAssetManager() const { return assetManager.get(); }
   Audio::Manager* getAudioManager() const { return audioManager.get(); }
+  GPUGC* getGPUGC() { return &gc; }
   std::atomic<bool> loading{false};
 
   static int ctrThreadFunc(void* data);
@@ -77,6 +105,7 @@ public:
 
   std::unique_ptr<Audio::Manager> audioManager;
   std::unique_ptr<Assets::Manager> assetManager;
+  GPUGC gc;
   SDL_Cursor* currentSDLCursor = nullptr;
 
   int width{}, height{}, lWidth{}, lHeight{};
