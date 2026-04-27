@@ -465,27 +465,31 @@ void GPUShader::end() {
 }
 
 void GPUShader::bindFragmentTexture(const uint32_t slot, SDL_GPUTexture* texture) const {
-  if (!renderPass) return;
+  if (!renderPass || !texture) return;
 
   SDL_GPUTextureSamplerBinding binding{};
   binding.texture = texture;
   binding.sampler = parent ? parent->defaultSampler : defaultSampler;
+
+  if (!binding.sampler) return;
 
   SDL_BindGPUFragmentSamplers(renderPass, slot, &binding, 1);
 }
 
 void GPUShader::bindVertexTexture(const uint32_t slot, SDL_GPUTexture* texture) const {
-  if (!renderPass) return;
+  if (!renderPass || !texture) return;
 
   SDL_GPUTextureSamplerBinding binding{};
   binding.texture = texture;
   binding.sampler = parent ? parent->defaultSampler : defaultSampler;
 
+  if (!binding.sampler) return;
+
   SDL_BindGPUVertexSamplers(renderPass, slot, &binding, 1);
 }
 
 void GPUShader::bindVertexBuffer(SDL_GPUBuffer* buffer, const uint32_t slot, const uint32_t offset) const {
-  if (!renderPass) return;
+  if (!renderPass || !buffer) return;
 
   SDL_GPUBufferBinding binding{};
   binding.buffer = buffer;
@@ -495,7 +499,7 @@ void GPUShader::bindVertexBuffer(SDL_GPUBuffer* buffer, const uint32_t slot, con
 }
 
 void GPUShader::bindIndexBuffer(SDL_GPUBuffer* buffer, const SDL_GPUIndexElementSize elementSize) const {
-  if (!renderPass) return;
+  if (!renderPass || !buffer) return;
 
   SDL_GPUBufferBinding binding{};
   binding.buffer = buffer;

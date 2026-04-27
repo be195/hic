@@ -92,6 +92,8 @@ void Container::update(const float deltaTime, const float time) const {
 }
 
 void Container::render(const float time) const {
+  if (!renderer) return;
+
 #if defined(__APPLE__) && defined(__MACH__)
   std::lock_guard lock(rootMutex);
   if (const auto root = rootPtr)
@@ -102,6 +104,8 @@ void Container::render(const float time) const {
 }
 
 void Container::dispatchEvent(const SDL_Event& e) {
+  if (!window || !renderer) return;
+
 #ifdef HIC_USE_IMGUI
   {
     std::lock_guard lock(imguiEventMutex);
@@ -122,9 +126,13 @@ void Container::dispatchEvent(const SDL_Event& e) {
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
     case SDL_EVENT_MOUSE_BUTTON_UP:
     case SDL_EVENT_MOUSE_WHEEL: {
+      if (lWidth == 0 || lHeight == 0) break;
+
       const int scaleX = width  / lWidth;
       const int scaleY = height / lHeight;
       const int scale = std::min(scaleX, scaleY);
+
+      if (scale == 0) break;
 
       const float offsetX = (width  - lWidth  * scale) / 2.0f;
       const float offsetY = (height - lHeight * scale) / 2.0f;

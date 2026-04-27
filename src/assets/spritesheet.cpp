@@ -78,8 +78,10 @@ std::vector<std::string> AnimatedSpritesheetPart::expandBraces(const std::string
       !single.empty() ? std::stoi(single) :
       !fromStr.empty() ? std::stoi(fromStr) : 1;
 
-    if (from < 0 || to < 0 || from == to)
-      throw std::invalid_argument("invalid range in brace expansion: \"" + full + "\"");
+    if (from < 0 || to < 0 || from == to) {
+      HICL("Spritesheet").error("invalid range in brace expansion: \"", full, "\"");
+      return { pattern };
+    }
 
     const int width = std::min({
       0,
@@ -144,8 +146,10 @@ void AnimatedSpritesheetPart::normalizeFrames(const std::vector<std::string> &gi
       const int count = std::stoi(!repeatMatch[2].str().empty() ?
         repeatMatch[2].str() : repeatMatch[3].str());
 
-      if (count < 1)
-        throw std::invalid_argument("repeat count must be >= 1 in \"" + frame + "\" at index " + std::to_string(i));
+      if (count < 1) {
+        HICL("Spritesheet").error("repeat count must be >= 1 in \"", frame, "\" at index ", i);
+        continue;
+      }
 
       for (int j = 0; j < count; ++j)
         frames.push_back(filename);
@@ -154,8 +158,10 @@ void AnimatedSpritesheetPart::normalizeFrames(const std::vector<std::string> &gi
 
     // empty str -> repeat previous frame
     if (frame.empty()) {
-      if (frames.empty())
-        throw std::invalid_argument("empty frames");
+      if (frames.empty()) {
+        HICL("Spritesheet").error("empty frames");
+        continue;
+      }
       frames.push_back(frames.back());
       continue;
     }
@@ -168,17 +174,24 @@ void AnimatedSpritesheetPart::normalizeFrames(const std::vector<std::string> &gi
       try {
         count = std::stoi(countStr);
       } catch (...) {
-        throw std::invalid_argument("invalid rollback count in animation frame: " + frame);
+        HICL("Spritesheet").error("invalid rollback count in animation frame: ", frame);
+        continue;
       }
 
-      if (count < 1)
-        throw std::invalid_argument("invalid rollback count in animation frame: " + frame);
+      if (count < 1) {
+        HICL("Spritesheet").error("invalid rollback count in animation frame: ", frame);
+        continue;
+      }
 
-      if (static_cast<size_t>(count) > frames.size())
-        throw std::out_of_range("stack overflow");
+      if (static_cast<size_t>(count) > frames.size()) {
+        HICL("Spritesheet").error("rollback stack overflow");
+        continue;
+      }
 
-      if (frames.empty())
-        throw std::invalid_argument("stack underflow");
+      if (frames.empty()) {
+        HICL("Spritesheet").error("rollback stack underflow");
+        continue;
+      }
 
       frames.push_back(frames[frames.size() - count]);
       continue;
@@ -210,7 +223,7 @@ void AnimatedSpritesheetPart::update(const float deltaTime) {
 
 Spritesheet::Spritesheet(std::string folderName) : Image("spritesheets/" + folderName + "/image.png"), folderName(std::move(folderName)) {
   animationMutex = SDL_CreateMutex();
-  assertNotNull(animationMutex, "failed to create mutex");
+  if (!animationMutex) HICL("Spritesheet").error("failed to create mutex");
 }
 
 Spritesheet::~Spritesheet() {

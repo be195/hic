@@ -99,6 +99,8 @@ Manager::~Manager() {
 }
 
 void Manager::processReady(SDL_Renderer* renderer) {
+  if (!renderer) return;
+
   SDL_LockMutex(readyMutex);
 
   while (!ready.empty()) {

@@ -32,13 +32,16 @@ void Image::preload() {
 }
 
 void Image::use(SDL_Renderer* renderer) {
-  if (!surface) {
-    HICL("Image").warn("surface loading failed in a background thread");
+  if (!renderer || !surface) {
+    if (!surface) HICL("Image").warn("surface loading failed in a background thread");
     return;
   }
 
   texture = SDL_CreateTextureFromSurface(renderer, surface);
-  assertNotNull(texture, SDL_GetError());
+  if (!texture) {
+    HICL("Image").error("Failed to create texture from surface:", SDL_GetError());
+    return;
+  }
 
   w = surface->w; h = surface->h;
   setScaleMode(SDL_SCALEMODE_NEAREST);

@@ -10,10 +10,10 @@ namespace hic::Assets {
 
 Audio::Audio(std::string fileName): fileName(std::move(fileName)) {
   handlesMutex = SDL_CreateMutex();
-  assertNotNull(handlesMutex, "failed to create mutex");
+  if (!handlesMutex) HICL("Audio").error("failed to create handles mutex");
 
   bufferMutex = SDL_CreateMutex();
-  assertNotNull(bufferMutex, "failed to create mutex");
+  if (!bufferMutex) HICL("Audio").error("failed to create buffer mutex");
 }
 
 Audio::~Audio() {

@@ -63,6 +63,8 @@ void BaseComponent::initChild(const std::shared_ptr<BaseComponent>& child) {
 }
 
 void BaseComponent::iPreMount(Container* cont, BaseComponent* par) {
+  if (!cont) return;
+
   const bool firstMount = mountedStage == 0;
   container = cont;
   parent    = par;
@@ -92,6 +94,8 @@ void BaseComponent::iPreMount(Container* cont, BaseComponent* par) {
 }
 
 void BaseComponent::iPostMount() {
+  if (!container) return;
+
   logger.info("mounting component (stage 2)");
   
   std::vector<std::shared_ptr<BaseComponent>> childrenCopy;
@@ -141,7 +145,7 @@ void BaseComponent::markRenderTarget() {
 }
 
 void BaseComponent::iUpdate(float deltaTime, const float time) {
-  if (!active.load(std::memory_order_acquire)) return;
+  if (!active.load(std::memory_order_acquire) || destroyed) return;
 
   deltaTime *= timeScale;
 
@@ -174,15 +178,17 @@ void BaseComponent::iUpdate(float deltaTime, const float time) {
 
   for (const auto& child : childrenCopy) {
     try {
-      child->iUpdate(deltaTime, time);
+      if (child) child->iUpdate(deltaTime, time);
     } catch (const std::exception& e) {
       logger.error("Child threw an update error: ", e.what());
-      child->active = false;
+      if (child) child->active = false;
     }
   }
 }
 
 void BaseComponent::iSwapRenderState() {
+  if (destroyed) return;
+
   pendingRS.rect = boundingRect;
   pendingRS.active = active.load(std::memory_order_relaxed);
   pendingRS.clip = clip;
@@ -208,7 +214,7 @@ void BaseComponent::iSwapRenderState() {
   }
 
   for (const auto& child : childrenCopy)
-    child->iSwapRenderState();
+    if (child) child->iSwapRenderState();
 }
 
 bool BaseComponent::useRenderTarget(const RenderState& rs) const {
@@ -222,6 +228,8 @@ void BaseComponent::iRender(
   BaseComponent* lastClipParent,
   const Position lastClipAbsPos
 ) {
+  if (!renderer || destroyed) return;
+
   RenderState rs;
   {
     std::lock_guard lock(rsSwapMutex);
@@ -298,6 +306,8 @@ void BaseComponent::iRender(
     }
 
     for (const auto& child : childrenCopy) {
+      if (!child) continue;
+
       try {
         RenderState childRS;
         {
