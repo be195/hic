@@ -1,4 +1,5 @@
 #include "shader.hpp"
+#include "../container.hpp"
 #include "../utils/logging.hpp"
 
 namespace hic::Assets {
