@@ -312,9 +312,14 @@ void GPUShader::bindBuffers() const {
     bindIndexBuffer(effectiveShader->indexBuffer, SDL_GPU_INDEXELEMENTSIZE_16BIT);
 }
 
-SDL_Mutex* GPUShader::texturePoolMutex = SDL_CreateMutex();
+SDL_Mutex* GPUShader::texturePoolMutex = nullptr;
+static std::once_flag texturePoolMutexFlag;
 std::vector<GPUShader::TextureInfo*> GPUShader::texturePool;
 GPUShader::TextureInfo* GPUShader::acquireBridgeTexture(SDL_Renderer* r) {
+  std::call_once(texturePoolMutexFlag, []() {
+    texturePoolMutex = SDL_CreateMutex();
+  });
+
   if (!texturePoolMutex) return nullptr;
 
   SDL_LockMutex(texturePoolMutex);

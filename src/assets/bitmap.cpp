@@ -243,7 +243,7 @@ void BitmapFont::renderText(SDL_Renderer* renderer, const float x, const float y
 }
 
 void BitmapFont::renderText(SDL_Renderer* renderer, const float x, const float y, const std::string& text, const SDL_Color color, const float scale) {
-  const std::vector colors(text.length(), color);
+  const std::vector colors(UTF8::length(text), color);
   return renderText(renderer, x, y, text, colors, scale);
 }
 

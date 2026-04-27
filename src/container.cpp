@@ -36,7 +36,6 @@ Container::~Container() {
   }
 #ifdef HIC_USE_IMGUI
   ImGui::DestroyContext(imguiContext);
-  free(imguiIo);
 #endif
 #if defined(__APPLE__) && defined(__MACH__)
   {

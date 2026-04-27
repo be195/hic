@@ -16,6 +16,8 @@ Manager::Manager() {
 }
 
 Manager::~Manager() {
+  if (stream)
+    SDL_DestroyAudioStream(stream);
   scratchBuffer.clear();
 }
 
