@@ -128,15 +128,7 @@ void BaseComponent::iDestroy() {
     child->iDestroy();
 
   if (renderTarget) {
-    if (container) {
-      SDL_GPUDevice* device = SDL_GetGPURendererDevice(container->getRenderer());
-      if (device)
-        container->getGPUGC()->enqueue(device, renderTarget);
-      else
-        SDL_DestroyTexture(renderTarget);
-    } else {
-      SDL_DestroyTexture(renderTarget);
-    }
+    SDL_DestroyTexture(renderTarget);
     renderTarget = nullptr;
   }
 
