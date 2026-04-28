@@ -35,6 +35,15 @@ public:
   Rectangle(const float x, const float y, const float w, const float h)
     : pos_(x, y), size_(w, h) {}
 
+  Rectangle(const Rectangle& other) : pos_(other.pos_), size_(other.size_) {}
+  Rectangle& operator=(const Rectangle& other) {
+    if (this != &other) {
+      pos_ = other.pos_;
+      size_ = other.size_;
+    }
+    return *this;
+  }
+
   [[nodiscard]] float x() const { return pos_.x; }
   [[nodiscard]] float y() const { return pos_.y; }
 
