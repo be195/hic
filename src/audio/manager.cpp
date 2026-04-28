@@ -47,7 +47,7 @@ bool Manager::popCommand(AudioCommand &command) {
   if (h == tail.load(std::memory_order_acquire))
     return false;
 
-  command = commands[h];
+  command = std::move(commands[h]);
   head.store((h + 1) % COMMAND_QUEUE_MAX, std::memory_order_release);
   return true;
 }

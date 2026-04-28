@@ -135,6 +135,12 @@ void BaseComponent::iDestroy() {
   clearAnimations();
   destroy();
 
+  {
+    std::lock_guard lock(rsSwapMutex);
+    activeRS.renderData = {};
+    pendingRS.renderData = {};
+  }
+
   parent = nullptr;
   container = nullptr;
   destroyed = true;
