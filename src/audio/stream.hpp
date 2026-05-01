@@ -6,6 +6,24 @@
 
 namespace hic::Audio {
 
+class HIC_API PCMStream {
+public:
+  explicit PCMStream(Assets::Audio* audio);
+  ~PCMStream() = default;
+
+  void getSamples(float* samples, int frames);
+  void reset() { position = 0; finished.store(false); }
+  void setLooping(bool looping) { loop.store(looping); }
+  bool isLooping() const { return loop.load(); }
+  bool isFinished() const { return finished.load(); }
+
+private:
+  Assets::Audio* audio;
+  size_t position = 0;
+  std::atomic<bool> loop{false};
+  std::atomic<bool> finished{false};
+};
+
 class HIC_API OpusStream {
 public:
   explicit OpusStream(Assets::Audio* audio);

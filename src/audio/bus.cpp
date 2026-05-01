@@ -111,21 +111,29 @@ std::shared_ptr<AudioBus> Bus::createAudioBus(const std::shared_ptr<Assets::Audi
 }
 
 AudioBus::AudioBus(Manager* manager, const std::shared_ptr<Assets::Audio> &audio) : Bus(manager), audio(audio) {
-  stream = new OpusStream(audio.get());
+  if (audio->isSample())
+    pcmStream = new PCMStream(audio.get());
+  else
+    stream = new OpusStream(audio.get());
 }
 
 AudioBus::~AudioBus() {
   delete stream;
+  delete pcmStream;
 }
 
 void AudioBus::read(float *samples, const int frames) {
   if (!playing.load(std::memory_order_acquire)) return;
   if (stream)
     stream->getSamples(samples, frames);
+  else if (pcmStream)
+    pcmStream->getSamples(samples, frames);
 }
 
 bool AudioBus::isFinished() const {
-  return !stream || stream->isFinished();
+  if (stream) return stream->isFinished();
+  if (pcmStream) return pcmStream->isFinished();
+  return true;
 }
 
 bool AudioBus::isDiscardOnFinish() const {
@@ -151,10 +159,14 @@ bool AudioBus::isPlaying() const {
 void AudioBus::setLooping(const bool looping) {
   if (stream)
     stream->setLooping(looping);
+  else if (pcmStream)
+    pcmStream->setLooping(looping);
 }
 
 bool AudioBus::isLooping() const {
-  return stream && stream->isLooping();
+  if (stream) return stream->isLooping();
+  if (pcmStream) return pcmStream->isLooping();
+  return false;
 }
 
 }

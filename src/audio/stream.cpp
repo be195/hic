@@ -1,7 +1,43 @@
 #include "stream.hpp"
 #include "const.hpp"
+#include <algorithm>
 
 namespace hic::Audio {
+
+PCMStream::PCMStream(Assets::Audio* audio) : audio(audio) {}
+
+void PCMStream::getSamples(float* samples, const int frames) {
+  if (finished.load(std::memory_order_acquire)) return;
+
+  const auto& buffer = audio->getDecodedBuffer();
+  if (buffer.empty()) {
+    finished.store(true, std::memory_order_release);
+    return;
+  }
+
+  const int samplesNeeded = frames * 2;
+  int samplesWritten = 0;
+
+  while (samplesWritten < samplesNeeded) {
+    if (position >= buffer.size()) {
+      if (loop.load(std::memory_order_acquire))
+        position = 0;
+      else {
+        finished.store(true, std::memory_order_release);
+        break;
+      }
+    }
+
+    const size_t samplesAvailable = buffer.size() - position;
+    const size_t toCopy = std::min(static_cast<size_t>(samplesNeeded - samplesWritten), samplesAvailable);
+
+    for (size_t i = 0; i < toCopy; ++i)
+      samples[samplesWritten + i] += static_cast<float>(buffer[position + i]) / 32768.f;
+
+    position += toCopy;
+    samplesWritten += static_cast<int>(toCopy);
+  }
+}
 
 OpusStream::OpusStream(Assets::Audio* audio): audio(audio) {
   opusFile = audio->createHandle();

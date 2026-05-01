@@ -125,6 +125,8 @@ private:
     }
   };
 
+  int bridgeW = 0, bridgeH = 0;
+
   static std::vector<TextureInfo*> texturePool;
   static SDL_Mutex* texturePoolMutex;
   static TextureInfo* acquireBridgeTexture(SDL_Renderer* r);

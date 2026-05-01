@@ -107,6 +107,7 @@ public:
   std::unique_ptr<Assets::Manager> assetManager;
   GPUGC gc;
   SDL_Cursor* currentSDLCursor = nullptr;
+  SDL_Texture* gameBuffer = nullptr;
 
   int width{}, height{}, lWidth{}, lHeight{};
 

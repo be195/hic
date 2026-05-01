@@ -108,6 +108,7 @@ Container::~Container() {
     root->iDestroy();
 #endif
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
+  if (gameBuffer) SDL_DestroyTexture(gameBuffer);
   Assets::GPUShader::cleanupTexturePool();
   gc.collectAll();
   GPUGC::makeCurrent(nullptr);
@@ -224,6 +225,9 @@ int Container::ctrThreadFunc(void* data) {
 }
 
 void Container::ctrThreadLoop() {
+#ifdef HIC_USE_IMGUI
+  ImGui::SetCurrentContext(imguiContext);
+#endif
   while (isInLoop.load(std::memory_order_acquire)) {
     gc.collect();
 
@@ -239,8 +243,12 @@ void Container::ctrThreadLoop() {
     }
 #endif
 
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
+    int w, h;
+    SDL_GetRenderOutputSize(renderer, &w, &h);
+    if (w <= 0 || h <= 0) {
+      SDL_Delay(10);
+      continue;
+    }
 
 #ifdef HIC_USE_IMGUI
     ImGui_ImplSDLRenderer3_NewFrame();
@@ -248,12 +256,31 @@ void Container::ctrThreadLoop() {
     ImGui::NewFrame();
 #endif
 
-    if (logicalResDirty.exchange(false, std::memory_order_acq_rel) && lWidth != 0 && lHeight != 0)
-      SDL_SetRenderLogicalPresentation(renderer, lWidth, lHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
+    if (logicalResDirty.exchange(false, std::memory_order_acq_rel) || !gameBuffer) {
+      if (gameBuffer) SDL_DestroyTexture(gameBuffer);
+      if (lWidth > 0 && lHeight > 0) {
+        gameBuffer = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, lWidth, lHeight);
+        if (gameBuffer) SDL_SetTextureScaleMode(gameBuffer, SDL_SCALEMODE_NEAREST);
+      }
+
+      SDL_SetRenderLogicalPresentation(renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
+    }
+
+    SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    SDL_SetRenderViewport(renderer, nullptr);
+    SDL_SetRenderClipRect(renderer, nullptr);
+
+    if (gameBuffer) {
+      SDL_SetRenderTarget(renderer, gameBuffer);
+      SDL_SetRenderViewport(renderer, nullptr);
+      SDL_SetRenderClipRect(renderer, nullptr);
+    }
+    
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
 
     if (loading.load(std::memory_order_acquire)) {
       assetManager->processReady(renderer);
-
       const int pending = assetManager->getPendingCount();
       const int readyCount = assetManager->getReadyCount();
       const bool stillLoading = assetManager->isLoading();
@@ -270,17 +297,33 @@ void Container::ctrThreadLoop() {
           root->iPostMount();
 #endif
       }
-    } else
+    } else {
       render(SDL_GetTicks());
+    }
+
+    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderViewport(renderer, nullptr);
+    SDL_SetRenderClipRect(renderer, nullptr);
+    
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
+    if (gameBuffer && lWidth > 0 && lHeight > 0) {
+      const float scaleX = static_cast<float>(w) / lWidth;
+      const float scaleY = static_cast<float>(h) / lHeight;
+      const float scale = std::min(scaleX, scaleY);
+      
+      const float gw = lWidth * scale;
+      const float gh = lHeight * scale;
+      const SDL_FRect dstRect = { (w - gw) / 2.0f, (h - gh) / 2.0f, gw, gh };
+      
+      SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      SDL_RenderTexture(renderer, gameBuffer, nullptr, &dstRect);
+    }
 
 #ifdef HIC_USE_IMGUI
     ImGui::Render();
-    int w, h;
-    SDL_GetWindowSize(window, &w, &h);
-    // FUCK!
-    SDL_SetRenderLogicalPresentation(renderer, w, h, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
-    SDL_SetRenderLogicalPresentation(renderer, lWidth, lHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
 #endif
 
     SDL_RenderPresent(renderer);

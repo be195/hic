@@ -19,7 +19,7 @@ public:
     const Audio* owner;
   };
 
-  explicit Audio(std::string fileName);
+  explicit Audio(std::string fileName, bool sample = false);
   ~Audio() override;
 
   static constexpr int OPUS_SAMPLE_RATE = 48000;
@@ -30,9 +30,15 @@ public:
 
   void preload() override;
 
+  bool isSample() const { return sample; }
+  const std::vector<opus_int16>& getDecodedBuffer() const { return decodedBuffer; }
+
   std::string getCacheKey() const override { return "aud#" + fileName; }
 private:
   std::vector<unsigned char> buffer;
+  std::vector<opus_int16> decodedBuffer; // only used if sample=true
+
+  bool sample = false;
 
   SDL_Mutex* bufferMutex = nullptr;
   SDL_Mutex* handlesMutex = nullptr;

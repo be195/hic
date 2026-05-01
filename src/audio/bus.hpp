@@ -67,7 +67,8 @@ public:
 
 private:
   std::shared_ptr<Assets::Audio> audio;
-  OpusStream* stream;
+  OpusStream* stream = nullptr;
+  PCMStream* pcmStream = nullptr;
   std::atomic<bool> playing{true};
   std::atomic<bool> discardOnFinish{false};
 };

@@ -8,7 +8,7 @@
 
 namespace hic::Assets {
 
-Audio::Audio(std::string fileName): fileName(std::move(fileName)) {
+Audio::Audio(std::string fileName, bool sample): fileName(std::move(fileName)), sample(sample) {
   handlesMutex = SDL_CreateMutex();
   if (!handlesMutex) HICL("Audio").error("failed to create handles mutex");
 
@@ -145,6 +145,41 @@ void Audio::preload() {
   if (!file.read(reinterpret_cast<char*>(buffer.data()), fileSize)) {
     HICL("Audio").error("failed to read audio file:", fileName);
     buffer.clear();
+  }
+
+  if (sample) {
+    const auto handle = createHandle();
+    if (!handle) {
+      HICL("Audio").error("failed to create OggOpusFile handle for sampling:", fileName);
+      buffer.clear();
+      return;
+    }
+
+    const int channels = op_channel_count(handle, -1);
+    const int frameSize = 960; // 20ms at 48kHz
+
+    const ogg_int64_t totalSamples = op_pcm_total(handle, -1);
+    if (totalSamples > 0)
+      decodedBuffer.reserve(static_cast<size_t>(totalSamples * channels));
+
+    std::vector<opus_int16> pcm(frameSize * channels);
+
+    while (true) {
+      const int samplesRead = op_read(handle, pcm.data(), frameSize, nullptr);
+      if (samplesRead < 0) {
+        HICL("Audio").error("error decoding OggOpusFile for sampling:", fileName, "error code:", samplesRead);
+        decodedBuffer.clear();
+        break;
+      }
+      if (samplesRead == 0) break;
+
+      decodedBuffer.insert(decodedBuffer.end(), pcm.begin(), pcm.begin() + (samplesRead * channels));
+    }
+
+    freeHandle(handle);
+
+    if (!decodedBuffer.empty())
+      HICL("Audio").debug("decoded audio sample size for", fileName, ":", decodedBuffer.size() * sizeof(opus_int16), "bytes");
   }
 }
 

@@ -330,14 +330,15 @@ GPUShader::TextureInfo* GPUShader::acquireBridgeTexture(SDL_Renderer* r) {
 
   if (!texturePoolMutex) return nullptr;
 
+  TextureInfo* info = nullptr;
   SDL_LockMutex(texturePoolMutex);
   if (!texturePool.empty()) {
-    TextureInfo* info = texturePool.back();
+    info = texturePool.back();
     texturePool.pop_back();
-    SDL_UnlockMutex(texturePoolMutex);
-    return info;
   }
   SDL_UnlockMutex(texturePoolMutex);
+
+  if (info) return info;
 
   // no available textures in the pool; create a new one
   SDL_Texture* tex = SDL_CreateTexture(r,
@@ -389,14 +390,10 @@ void GPUShader::cleanupTexturePool() {
   if (!texturePoolMutex) return;
 
   SDL_LockMutex(texturePoolMutex);
-
   for (const auto& info : texturePool)
     delete info;
-
   texturePool.clear();
   SDL_UnlockMutex(texturePoolMutex);
-  SDL_DestroyMutex(texturePoolMutex);
-  texturePoolMutex = nullptr;
 }
 
 void GPUShader::createDefaultSampler() {
@@ -418,7 +415,9 @@ void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height)
   auto* const effectiveDevice   = parent ? parent->device   : device;
 
   if (!effectivePipeline || !effectiveDevice) return;
-  if (!bridgeTextureInfo) initBridge(renderer);
+  
+  if (!bridgeTextureInfo)
+    bridgeTextureInfo = acquireBridgeTexture(renderer);
 
   if (!bridgeTextureInfo) {
     HICL("GPUShader").error("failed to initialize bridge texture");
@@ -426,7 +425,8 @@ void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height)
   }
 
   activeRenderer = renderer;
-  SDL_FlushRenderer(renderer);
+  bridgeW = width;
+  bridgeH = height;
 
   commandBuffer = SDL_AcquireGPUCommandBuffer(effectiveDevice);
   if (!commandBuffer) {
@@ -466,8 +466,12 @@ void GPUShader::end() {
     submitted = true;
   }
 
-  if (submitted && bridgeTextureInfo && activeRenderer)
-    SDL_RenderTexture(activeRenderer, bridgeTextureInfo->bridgeTexture, nullptr, nullptr);
+  if (submitted && bridgeTextureInfo && activeRenderer) {
+    const SDL_FRect srcRect = { 0, 0, static_cast<float>(bridgeW), static_cast<float>(bridgeH) };
+    const SDL_FRect dstRect = { 0, 0, static_cast<float>(bridgeW), static_cast<float>(bridgeH) };
+
+    SDL_RenderTexture(activeRenderer, bridgeTextureInfo->bridgeTexture, &srcRect, &dstRect);
+  }
 
   activeRenderer = nullptr;
 }
