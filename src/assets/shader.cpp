@@ -450,6 +450,15 @@ void GPUShader::begin(SDL_Renderer* renderer, const int width, const int height)
     return;
   }
 
+  SDL_GPUViewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.w = static_cast<float>(bridgeW);
+  viewport.h = static_cast<float>(bridgeH);
+  viewport.min_depth = 0.0f;
+  viewport.max_depth = 1.0f;
+  SDL_SetGPUViewport(renderPass, &viewport);
+
   SDL_BindGPUGraphicsPipeline(renderPass, effectivePipeline);
 }
 
