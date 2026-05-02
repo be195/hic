@@ -95,6 +95,12 @@ Container::~Container() {
     haltLoop();
     SDL_WaitThread(ctrThread, nullptr);
   }
+
+  rootPtr.store(nullptr, std::memory_order_release);
+  nextPtr.store(nullptr, std::memory_order_release);
+  roots.clear();
+  assetManager.reset();
+
 #ifdef HIC_USE_IMGUI
   ImGui::DestroyContext(imguiContext);
 #endif
@@ -109,9 +115,6 @@ Container::~Container() {
 #endif
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
   if (gameBuffer) SDL_DestroyTexture(gameBuffer);
-  
-  roots.clear();
-  assetManager.reset();
 
   Assets::GPUShader::cleanupTexturePool();
   gc.collectAll();
