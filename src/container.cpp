@@ -109,6 +109,10 @@ Container::~Container() {
 #endif
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
   if (gameBuffer) SDL_DestroyTexture(gameBuffer);
+  
+  roots.clear();
+  assetManager.reset();
+
   Assets::GPUShader::cleanupTexturePool();
   gc.collectAll();
   GPUGC::makeCurrent(nullptr);
