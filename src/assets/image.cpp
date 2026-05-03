@@ -3,6 +3,7 @@
 #include "image.hpp"
 #include "../utils/util.hpp"
 #include "../utils/logging.hpp"
+#include "manager.hpp"
 
 namespace hic::Assets {
 
@@ -17,7 +18,7 @@ Image::~Image() {
   }
 }
 
-void Image::preload() {
+void Image::preload(Manager* manager) {
   if (texture) {
     SDL_DestroyTexture(texture);
     texture = nullptr;
@@ -28,7 +29,7 @@ void Image::preload() {
     surface = nullptr;
   }
 
-  surface = loadSurfaceFromFile(fileName.c_str());
+  surface = loadSurfaceFromFile(manager, ("images/" + fileName).c_str());
 }
 
 void Image::use(SDL_Renderer* renderer) {

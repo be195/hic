@@ -5,6 +5,7 @@
 #include <ranges>
 #include "../utils/util.hpp"
 #include "../utils/logging.hpp"
+#include "manager.hpp"
 
 namespace hic::Assets {
 
@@ -126,10 +127,11 @@ opus_int64 Audio::_tellCallback(void *stream) {
   return res;
 }
 
-void Audio::preload() {
-  std::ifstream file("audio/" + fileName + ".ogg", std::ios::binary | std::ios::ate);
+void Audio::preload(Manager* manager) {
+  std::string path = manager->resolve("audio/" + fileName + ".ogg");
+  std::ifstream file(path, std::ios::binary | std::ios::ate);
   if (!file) {
-    HICL("Audio").error("could not open audio file:", fileName);
+    HICL("Audio").error("could not open audio file:", path);
     return;
   }
 

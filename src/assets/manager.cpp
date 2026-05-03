@@ -36,7 +36,7 @@ void Manager::threadLoop() {
       loading.store(true, std::memory_order_release);
 
       HICL("AssetManager").info("preloading", task.asset->getCacheKey());
-      task.asset->preload();
+      task.asset->preload(this);
 
       SDL_LockMutex(readyMutex);
       ready.push(std::move(task));
@@ -72,6 +72,20 @@ std::shared_ptr<Base> Manager::loadCache(const std::string& key) {
 
   SDL_UnlockMutex(cacheMutex);
   return result;
+}
+
+void Manager::addSearchPath(const std::string& path) {
+  searchPaths.push_back(path);
+}
+
+std::string Manager::resolve(const std::string& fileName) const {
+  for (const auto& path : searchPaths) {
+    std::string fullPath = path + "/" + fileName;
+    if (SDL_GetPathInfo(fullPath.c_str(), nullptr))
+      return fullPath;
+  }
+
+  return "assets/" + fileName;
 }
 
 Manager::Manager() {

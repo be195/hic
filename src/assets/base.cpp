@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include "base.hpp"
+#include "manager.hpp"
 
 namespace hic::Assets {
 
@@ -34,8 +35,9 @@ static SDL_Surface* createPlaceholderSurface() {
   return surface;
 }
 
-SDL_Surface* loadSurfaceFromFile(const char* fileName) {
-  const auto surface = SDL_LoadPNG(fileName);
+SDL_Surface* loadSurfaceFromFile(Manager* manager, const char* fileName) {
+  std::string path = manager->resolve(fileName);
+  const auto surface = SDL_LoadPNG(path.c_str());
   if (!surface)
     return createPlaceholderSurface();
 

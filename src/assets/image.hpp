@@ -16,7 +16,7 @@ public:
   explicit Image(std::string fileName) : fileName(std::move(fileName)), w(0), h(0) {}
   ~Image() override;
 
-  void preload() override;
+  void preload(Manager* manager) override;
   void use(SDL_Renderer* renderer) override;
   void render(SDL_Renderer* renderer, float x, float y, float gw = -1, float gh = -1) const;
   void setScaleMode(SDL_ScaleMode scaleMode) const;

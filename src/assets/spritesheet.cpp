@@ -4,6 +4,7 @@
 #include <fstream>
 #include "../utils/util.hpp"
 #include "../utils/logging.hpp"
+#include "manager.hpp"
 
 namespace hic::Assets {
 
@@ -221,7 +222,9 @@ void AnimatedSpritesheetPart::update(const float deltaTime) {
   }
 }
 
-Spritesheet::Spritesheet(std::string folderName) : Image("spritesheets/" + folderName + "/image.png"), folderName(std::move(folderName)) {
+Spritesheet::Spritesheet(std::string folderName) 
+  : Image("spritesheets/" + folderName + "/image.png")
+  , folderName(std::move(folderName)) {
   animationMutex = SDL_CreateMutex();
   if (!animationMutex) HICL("Spritesheet").error("failed to create mutex");
 }
@@ -231,14 +234,16 @@ Spritesheet::~Spritesheet() {
     SDL_DestroyMutex(animationMutex);
 }
 
-void Spritesheet::preload() {
-  Image::preload();
+void Spritesheet::preload(Manager* manager) {
+  Image::preload(manager);
 
-  std::ifstream f("spritesheets/" + folderName + "/data.json");
+  std::string dataPath = manager->resolve("spritesheets/" + folderName + "/data.json");
+  std::ifstream f(dataPath);
   if (!f.is_open()) {
-    HICL("Spritesheet").warn("failed to open spritesheet json file");
+    HICL("Spritesheet").warn("failed to open spritesheet json file:", dataPath);
     return;
   }
+// ...
 
   try {
     const auto jsonData = nlohmann::json::parse(f);
@@ -278,15 +283,13 @@ std::shared_ptr<AnimatedSpritesheetPart> Spritesheet::animation(const std::strin
   SDL_LockMutex(animationMutex);
 
   std::shared_ptr<AnimatedSpritesheetPart> result;
-  if (const auto it = cache.find(animation); it != cache.end()) {
+  if (const auto it = cache.find(animation); it != cache.end())
     result = it->second;
-  }
 
   SDL_UnlockMutex(animationMutex);
 
-  if (!result) {
+  if (!result)
     HICL("Spritesheet").warn("animation not found in cache:", animation);
-  }
 
   return result;
 }

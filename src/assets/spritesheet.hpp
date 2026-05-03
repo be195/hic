@@ -130,7 +130,7 @@ public:
   explicit Spritesheet(std::string folderName);
   ~Spritesheet() override;
 
-  void preload() override;
+  void preload(Manager* manager) override;
   void use(SDL_Renderer *renderer) override;
   void renderFrame(SDL_Renderer* renderer, const std::string &frame, float x, float y, bool flipX = false, bool flipY = false);
   std::shared_ptr<AnimatedSpritesheetPart> animation(const std::string &animation);

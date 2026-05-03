@@ -5,6 +5,7 @@
 #include "../utils/util.hpp"
 #include "../utils/utf8.hpp"
 #include "base.hpp"
+#include "manager.hpp"
 
 namespace hic::Assets {
 
@@ -39,23 +40,24 @@ BitmapFont::~BitmapFont() {
   }
 }
 
-void BitmapFont::preload() {
+void BitmapFont::preload(Manager* manager) {
   SDL_LockMutex(mutex);
   cleanup();
 
   font = std::make_unique<BMFont>();
-  ok = font->tryLoad("fonts/" + folderName + "/" + folderName + ".fnt");
+  std::string fntPath = manager->resolve("fonts/" + folderName + "/" + folderName + ".fnt");
+  ok = font->tryLoad(fntPath.c_str());
   if (!ok) {
-    HICL("BitmapFont").error("failed to load font binary data:", folderName);
+    HICL("BitmapFont").error("failed to load font binary data:", fntPath);
     SDL_UnlockMutex(mutex);
     return;
   }
 
   for (const auto& page : font->pages) {
-    const auto pagePath = "fonts/" + folderName + "/" + page;
+    std::string pagePath = manager->resolve("fonts/" + folderName + "/" + page);
     HICL("BitmapFont").debug("attempting to load page", pagePath);
 
-    const auto surface = loadSurfaceFromFile(pagePath.c_str());
+    const auto surface = loadSurfaceFromFile(manager, pagePath.c_str());
     if (surface)
       surfaces.insert({page, surface});
     else {

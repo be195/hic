@@ -28,7 +28,7 @@ public:
   OggOpusFile* createHandle();
   void freeHandle(OggOpusFile* handle);
 
-  void preload() override;
+  void preload(Manager* manager) override;
 
   bool isSample() const { return sample; }
   const std::vector<opus_int16>& getDecodedBuffer() const { return decodedBuffer; }

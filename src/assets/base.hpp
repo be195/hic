@@ -7,11 +7,13 @@
 
 namespace hic::Assets {
 
+class HIC_API Manager;
+
 struct HIC_API Base : std::enable_shared_from_this<Base> {
   virtual ~Base() = default;
 
   // called in a separate thread
-  virtual void preload() {}
+  virtual void preload(Manager* manager) {}
 
   // called in a main thread
   virtual void use(SDL_Renderer* renderer) {}
@@ -25,6 +27,6 @@ struct HIC_API Base : std::enable_shared_from_this<Base> {
 };
 
 static SDL_Surface* createPlaceholderSurface();
-SDL_Surface* loadSurfaceFromFile(const char* fileName);
+SDL_Surface* loadSurfaceFromFile(Manager* manager, const char* fileName);
 
 } // namespace hic::Assets

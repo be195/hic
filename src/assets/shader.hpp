@@ -76,7 +76,7 @@ public:
   GPUShader(std::string vertexFile, std::string fragmentFile, Config config, bool useGlobal);
   ~GPUShader() override;
 
-  void preload() override;
+  void preload(Manager* manager) override;
   void use(SDL_Renderer* renderer) override;
   void begin(SDL_Renderer* renderer, int width, int height);
   void end();

@@ -1,6 +1,7 @@
 #include "shader.hpp"
 #include "../container.hpp"
 #include "../utils/logging.hpp"
+#include "manager.hpp"
 
 namespace hic::Assets {
 
@@ -112,19 +113,21 @@ void GPUShader::createBuffers(const std::vector<float>& vertices, const std::vec
   }
 }
 
-void GPUShader::preload() {
+void GPUShader::preload(Manager* manager) {
   size_t vSize, fSize;
 
-  vertexData = SDL_LoadFile(("shaders/vt_" + vertexFileName + HIC_GPUSHADER_EXT).c_str(), &vSize);
+  std::string vPath = manager->resolve("shaders/vt_" + vertexFileName + HIC_GPUSHADER_EXT);
+  vertexData = SDL_LoadFile(vPath.c_str(), &vSize);
   if (!vertexData) {
-    HICL("GPUShader").error("failed to load vertex shader:", vertexFileName);
+    HICL("GPUShader").error("failed to load vertex shader:", vPath);
     return;
   }
   vertexDataSize = vSize;
 
-  fragmentData = SDL_LoadFile(("shaders/fr_" + fragmentFileName + HIC_GPUSHADER_EXT).c_str(), &fSize);
+  std::string fPath = manager->resolve("shaders/fr_" + fragmentFileName + HIC_GPUSHADER_EXT);
+  fragmentData = SDL_LoadFile(fPath.c_str(), &fSize);
   if (!fragmentData) {
-    HICL("GPUShader").error("failed to load fragment shader:", fragmentFileName);
+    HICL("GPUShader").error("failed to load fragment shader:", fPath);
     SDL_free(vertexData);
     vertexData = nullptr;
     return;

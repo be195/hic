@@ -6,6 +6,7 @@
 #include <atomic>
 #include "../utils/hicapi.hpp"
 #include "base.hpp"
+#include <vector>
 
 namespace hic::Assets {
 
@@ -16,6 +17,7 @@ private:
     std::function<void()> callback;
   };
 
+  std::vector<std::string> searchPaths;
   std::queue<LoadTask> loadTasks;
   std::queue<LoadTask> ready;
   mutable SDL_Mutex* loadMutex;
@@ -59,6 +61,9 @@ public:
   size_t getCacheSize() const;
   size_t getPendingCount() const;
   size_t getReadyCount() const;
+
+  void addSearchPath(const std::string& path);
+  std::string resolve(const std::string& fileName) const;
 };
 
 template<typename T, typename... Args>

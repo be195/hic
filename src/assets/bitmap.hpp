@@ -19,7 +19,7 @@ public:
   explicit BitmapFont(std::string folderName);
   ~BitmapFont() override;
 
-  void preload() override;
+  void preload(Manager* manager) override;
   void use(SDL_Renderer *renderer) override;
   void setScaleMode(SDL_ScaleMode scaleMode);
 
