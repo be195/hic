@@ -80,12 +80,12 @@ void Manager::addSearchPath(const std::string& path) {
 
 std::string Manager::resolve(const std::string& fileName) const {
   for (const auto& path : searchPaths) {
-    std::string fullPath = path + "/" + fileName;
+    std::string fullPath = path.empty() ? fileName : path + "/" + fileName;
     if (SDL_GetPathInfo(fullPath.c_str(), nullptr))
       return fullPath;
   }
 
-  return "assets/" + fileName;
+  return fileName;
 }
 
 Manager::Manager() {
