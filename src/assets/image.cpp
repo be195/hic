@@ -29,7 +29,7 @@ void Image::preload(Manager* manager) {
     surface = nullptr;
   }
 
-  surface = loadSurfaceFromFile(manager, ("images/" + fileName).c_str());
+  surface = loadSurfaceFromFile(manager, fileName.c_str());
 }
 
 void Image::use(SDL_Renderer* renderer) {
