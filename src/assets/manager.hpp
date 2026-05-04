@@ -63,6 +63,7 @@ public:
   size_t getReadyCount() const;
 
   void addSearchPath(const std::string& path);
+  void clearSearchPaths();
   std::string resolve(const std::string& fileName) const;
 };
 

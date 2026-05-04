@@ -78,6 +78,10 @@ void Manager::addSearchPath(const std::string& path) {
   searchPaths.push_back(path);
 }
 
+void Manager::clearSearchPaths() {
+  searchPaths.clear();
+}
+
 std::string Manager::resolve(const std::string& fileName) const {
   for (const auto& path : searchPaths) {
     std::string fullPath = path.empty() ? fileName : path + "/" + fileName;
