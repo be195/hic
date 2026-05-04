@@ -7,6 +7,7 @@
 #include <mutex>
 #include <memory>
 #include <unordered_map>
+#include <atomic>
 
 namespace hic {
 
@@ -90,7 +91,7 @@ private:
   static inline std::atomic<bool> isShuttingDown{false};
 
   template<typename... Args>
-  [[gsl::suppress]] void log(const LogLevel level, Args&&... args) {
+  void log(const LogLevel level, Args&&... args) {
     if (level < minLevel) return;
 
     std::ostringstream oss;
