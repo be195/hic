@@ -43,7 +43,7 @@ struct HIC_API RenderState {
 class HIC_API BaseComponent : public AnimationMixin {
 public:
   explicit BaseComponent(const std::string& loggerTag = "BaseComponent")
-    : logger(std::move(loggerTag)) {}
+    : logger(loggerTag) {}
   virtual ~BaseComponent();
 
   virtual void preload() {}

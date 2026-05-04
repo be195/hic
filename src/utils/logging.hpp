@@ -46,7 +46,14 @@ public:
     log(LogLevel::ERR, std::forward<Args>(args)...);
   }
 
+  static Logger& getShutdownLoggerDummy() {
+    static Logger dummy("SHUTDOWN");
+    return dummy;
+  }
   static Logger& get(const std::string& name) {
+    if (isShuttingDown)
+      return getShutdownLoggerDummy();
+
     static std::mutex mutex;
     static std::unordered_map<std::string, std::unique_ptr<Logger>> loggers;
 
@@ -55,6 +62,14 @@ public:
     if (it == loggers.end())
       it = loggers.emplace(name, std::unique_ptr<Logger>(new Logger(name))).first;
     return *it->second;
+  }
+
+  static void signalShutdown() {
+    isShuttingDown = true;
+  }
+
+  static bool alive() {
+    return !isShuttingDown;
   }
 
   static void setMinLevel(const LogLevel level) {
@@ -69,12 +84,13 @@ private:
   std::string name;
   uint8_t r, g, b;
 
-  static inline auto minLevel = LogLevel::DEBUG;
-  static inline bool colored = true;
+  static inline std::atomic<LogLevel> minLevel{LogLevel::DEBUG};
+  static inline std::atomic<bool> colored{true};
   static inline std::mutex outputMutex;
+  static inline std::atomic<bool> isShuttingDown{false};
 
   template<typename... Args>
-  void log(const LogLevel level, Args&&... args) {
+  [[gsl::suppress]] void log(const LogLevel level, Args&&... args) {
     if (level < minLevel) return;
 
     std::ostringstream oss;

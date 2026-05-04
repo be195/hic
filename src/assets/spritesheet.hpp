@@ -41,12 +41,12 @@ namespace ssjson {
     std::string version;
     std::string image;
     std::string format;
-    ISize size;
+    ISize size{0, 0};
     float scale;
   };
 
   struct SpritesheetAnimation {
-    float fps;
+    float fps = 0.f;
     std::vector<std::string> frames;
   };
 
