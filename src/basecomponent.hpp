@@ -53,6 +53,7 @@ public:
   virtual void postTaskDrain() {}
 
   virtual void update(float deltaTime, float time) {}
+  virtual void activeChanged(bool isActive) {}
   virtual std::any buildRenderData() { return {}; }
   virtual void draw(SDL_Renderer* r, float time, const std::any& data) {}
   virtual void postDraw(SDL_Renderer* r, float time, const std::any& data) {}
@@ -125,6 +126,7 @@ protected:
 private:
   uint8_t mountedStage = 0;
   bool destroyed = false;
+  bool lastActive = true;
 
   bool pendingNeedsRender = false;
   bool pendingDirtyRenderTarget = false;

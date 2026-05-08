@@ -151,7 +151,13 @@ void BaseComponent::markRenderTarget() {
 }
 
 void BaseComponent::iUpdate(float deltaTime, const float time) {
-  if (!active.load(std::memory_order_acquire) || destroyed) return;
+  const bool currentActive = active.load(std::memory_order_acquire);
+  if (currentActive != lastActive) {
+    lastActive = currentActive;
+    activeChanged(currentActive);
+  }
+
+  if (!currentActive || destroyed) return;
 
   deltaTime *= timeScale;
 
