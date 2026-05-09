@@ -2,6 +2,7 @@
 
 #include "events.hpp"
 #include "hicapi.hpp"
+#include <SDL3/SDL_rect.h>
 
 namespace hic {
 
@@ -114,17 +115,30 @@ public:
   }
 
   [[nodiscard]] const SDL_Rect& toSDLRect() const {
-    return { static_cast<int>(std::floorf(pos_.x)), static_cast<int>(std::floorf(pos_.y)),
-             static_cast<int>(std::floorf(size_.w)), static_cast<int>(std::floorf(size_.h)) };
+    return {
+      static_cast<int>(std::floorf(pos_.x)),
+      static_cast<int>(std::floorf(pos_.y)),
+      static_cast<int>(std::floorf(size_.w)),
+      static_cast<int>(std::floorf(size_.h)),
+    };
   }
 
   [[nodiscard]] const SDL_FRect& floorToSDLFRect() const {
-    return { std::floorf(pos_.x), std::floorf(pos_.y), std::floorf(size_.w), std::floorf(size_.h) };
+    return {
+      std::floorf(pos_.x),
+      std::floorf(pos_.y),
+      std::floorf(size_.w),
+      std::floorf(size_.h),
+    };
   }
 
   [[nodiscard]] const SDL_Rect& floorToSDLRect() const {
-    return { static_cast<int>(std::floorf(pos_.x)), static_cast<int>(std::floorf(pos_.y)),
-             static_cast<int>(std::floorf(size_.w)), static_cast<int>(std::floorf(size_.h)) };
+    return {
+      static_cast<int>(std::floorf(pos_.x)),
+      static_cast<int>(std::floorf(pos_.y)),
+      static_cast<int>(std::floorf(size_.w)),
+      static_cast<int>(std::floorf(size_.h)),
+    };
   }
 
   [[nodiscard]] bool operator!=(const Rectangle& other) const {
