@@ -336,8 +336,8 @@ void BaseComponent::iRender(
 
         if (!rs.clip || SDL_HasRectIntersection(&childRect, &currentClipRect)) {
           const Position childAbsPos = {
-            absPos.x + childRS.rect.x(),
-            absPos.y + childRS.rect.y()
+            absPos.x + std::floorf(childRS.rect.x()),
+            absPos.y + std::floorf(childRS.rect.y())
           };
           if (rs.clip)
             child->iRender(renderer, time, childAbsPos, this, absPos);

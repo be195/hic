@@ -101,7 +101,40 @@ public:
   }
 
   [[nodiscard]] const Position& pos() const { return pos_; }
+  [[nodiscard]] const Position& fpos() const {
+    return { std::floorf(pos_.x), std::floorf(pos_.y) };
+  }
   [[nodiscard]] const Size& size() const { return size_; }
+  [[nodiscard]] const Size& fsize() const {
+    return { std::floorf(size_.w), std::floorf(size_.h) };
+  }
+
+  [[nodiscard]] const SDL_FRect& toSDLFRect() const {
+    return { pos_.x, pos_.y, size_.w, size_.h };
+  }
+
+  [[nodiscard]] const SDL_Rect& toSDLRect() const {
+    return { static_cast<int>(std::floorf(pos_.x)), static_cast<int>(std::floorf(pos_.y)),
+             static_cast<int>(std::floorf(size_.w)), static_cast<int>(std::floorf(size_.h)) };
+  }
+
+  [[nodiscard]] const SDL_FRect& floorToSDLFRect() const {
+    return { std::floorf(pos_.x), std::floorf(pos_.y), std::floorf(size_.w), std::floorf(size_.h) };
+  }
+
+  [[nodiscard]] const SDL_Rect& floorToSDLRect() const {
+    return { static_cast<int>(std::floorf(pos_.x)), static_cast<int>(std::floorf(pos_.y)),
+             static_cast<int>(std::floorf(size_.w)), static_cast<int>(std::floorf(size_.h)) };
+  }
+
+  [[nodiscard]] bool operator!=(const Rectangle& other) const {
+    return !(*this == other);
+  }
+
+  [[nodiscard]] bool operator==(const Rectangle& other) const {
+    return pos_.x == other.pos_.x && pos_.y == other.pos_.y &&
+           size_.w == other.size_.w && size_.h == other.size_.h;
+  }
 
   [[nodiscard]] bool contains(const float px, const float py) const {
     return px >= pos_.x && px < pos_.x + size_.w &&
