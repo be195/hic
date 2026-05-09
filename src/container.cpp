@@ -171,7 +171,7 @@ void Container::render(const float time) const {
 #else
   if (const auto root = rootPtr.load(std::memory_order_acquire))
 #endif
-    root->iRender(renderer, time, root->activeRS.rect.pos(), nullptr, {0, 0});
+    root->iRender(renderer, time, root->activeRS.rect.fpos(), nullptr, {0, 0});
 }
 
 void Container::dispatchEvent(const SDL_Event& e) {
