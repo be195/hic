@@ -3,6 +3,7 @@
 #include "events.hpp"
 #include "hicapi.hpp"
 #include <SDL3/SDL_rect.h>
+#include <cmath>
 
 namespace hic {
 
