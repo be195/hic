@@ -4,6 +4,7 @@
 #include "hicapi.hpp"
 #include <SDL3/SDL_rect.h>
 #include <cmath>
+#include <math.h>
 
 namespace hic {
 
@@ -103,19 +104,19 @@ public:
   }
 
   [[nodiscard]] const Position& pos() const { return pos_; }
-  [[nodiscard]] const Position& fpos() const {
+  [[nodiscard]] const Position fpos() const {
     return { std::floorf(pos_.x), std::floorf(pos_.y) };
   }
   [[nodiscard]] const Size& size() const { return size_; }
-  [[nodiscard]] const Size& fsize() const {
+  [[nodiscard]] const Size fsize() const {
     return { std::floorf(size_.w), std::floorf(size_.h) };
   }
 
-  [[nodiscard]] const SDL_FRect& toSDLFRect() const {
+  [[nodiscard]] SDL_FRect toSDLFRect() const {
     return { pos_.x, pos_.y, size_.w, size_.h };
   }
 
-  [[nodiscard]] const SDL_Rect& toSDLRect() const {
+  [[nodiscard]] SDL_Rect toSDLRect() const {
     return {
       static_cast<int>(std::floorf(pos_.x)),
       static_cast<int>(std::floorf(pos_.y)),
@@ -124,7 +125,7 @@ public:
     };
   }
 
-  [[nodiscard]] const SDL_FRect& floorToSDLFRect() const {
+  [[nodiscard]] SDL_FRect floorToSDLFRect() const {
     return {
       std::floorf(pos_.x),
       std::floorf(pos_.y),
@@ -133,7 +134,7 @@ public:
     };
   }
 
-  [[nodiscard]] const SDL_Rect& floorToSDLRect() const {
+  [[nodiscard]] SDL_Rect floorToSDLRect() const {
     return {
       static_cast<int>(std::floorf(pos_.x)),
       static_cast<int>(std::floorf(pos_.y)),
