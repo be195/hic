@@ -96,22 +96,25 @@ Container::~Container() {
     SDL_WaitThread(ctrThread, nullptr);
   }
 
+#if defined(__APPLE__) && defined(__MACH__)
+  {
+    std::lock_guard lock(rootMutex);
+    rootPtr = nullptr;
+  }
+
+  {
+    std::lock_guard lock(nextMutex);
+    nextPtr = nullptr;
+  }
+#else
   rootPtr.store(nullptr, std::memory_order_release);
   nextPtr.store(nullptr, std::memory_order_release);
+#endif
   roots.clear();
   assetManager.reset();
 
 #ifdef HIC_USE_IMGUI
   ImGui::DestroyContext(imguiContext);
-#endif
-#if defined(__APPLE__) && defined(__MACH__)
-  {
-    std::lock_guard lock(rootMutex);
-    if (rootPtr) rootPtr->iDestroy();
-  }
-#else
-  if (const auto root = rootPtr.load(std::memory_order_acquire))
-    root->iDestroy();
 #endif
   if (currentSDLCursor) SDL_DestroyCursor(currentSDLCursor);
   if (gameBuffer) SDL_DestroyTexture(gameBuffer);
